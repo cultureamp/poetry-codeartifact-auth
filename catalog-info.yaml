@@ -1,0 +1,19 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: poetry-codeartifact-auth
+  description: Tool for authenticating against CodeArtifact
+  links:
+    - title: Website
+      url: https://github.com/cultureamp/poetry-codeartifact-auth
+  tags:
+    - tier-3
+    - users-internal
+    - data-restricted
+  annotations:
+    github.com/project-slug: cultureamp/poetry-codeartifact-auth
+    backstage.io/techdocs-ref: url:https://github.com/cultureamp/blob/master/poetry-codeartifact-auth
+spec:
+  type: service
+  owner: cultureamp
+  lifecycle: production
