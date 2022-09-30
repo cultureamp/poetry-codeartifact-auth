@@ -1,21 +1,19 @@
+#!/usr/bin/env python
+
+import argparse
+import ast
+import logging
 import os
 import re
 import subprocess
 from dataclasses import dataclass, asdict
+from enum import Enum
 from io import StringIO
-from typing import Dict
-import logging
+from typing import Dict, TypedDict
 from urllib.parse import urlparse
 
 import boto3
 import dotenv.parser
-from cleo.events.console_command_event import ConsoleCommandEvent
-from cleo.events.console_events import COMMAND
-from cleo.events.event_dispatcher import EventDispatcher
-from poetry.console.application import Application
-from poetry.console.commands.lock import LockCommand
-from poetry.console.commands.update import UpdateCommand
-from poetry.plugins.application_plugin import ApplicationPlugin
 
 logging.basicConfig()
 LOG = logging.getLogger(__name__)
@@ -60,7 +58,7 @@ class AwsAuthParameters:
         )
 
 
-def get_auth_token(repo_config: CodeArtifactRepoConfig, auth_params: AwsAuthParameters):
+def get_auth_token_for_params(repo_config: CodeArtifactRepoConfig, auth_params: AwsAuthParameters):
     boto3_session = boto3.Session(**asdict(auth_params), region_name=repo_config.region)
     client = boto3_session.client("codeartifact")
     return client.get_authorization_token(domain=repo_config.domain, domainOwner=repo_config.aws_account)
@@ -68,65 +66,77 @@ def get_auth_token(repo_config: CodeArtifactRepoConfig, auth_params: AwsAuthPara
 
 def get_auth_token_using_env(repo_config: CodeArtifactRepoConfig):
     auth_params = AwsAuthParameters.from_env_auth_vars(os.environ)
-    return get_auth_token(repo_config, auth_params)
+    return get_auth_token_for_params(repo_config, auth_params)
 
 
 def get_auth_token_using_vault(repo_config: CodeArtifactRepoConfig, aws_profile: str):
+    if not aws_profile:
+        raise ValueError("Profile must be set to use aws-vault")
     auth_params = AwsAuthParameters.from_env_auth_vars(aws_auth_vars_from_vault(aws_profile))
-    return get_auth_token(repo_config, auth_params)
+    return get_auth_token_for_params(repo_config, auth_params)
 
 
 def aws_auth_vars_from_vault(aws_profile: str) -> Dict[str, str]:
     aws_vault_env_proc = subprocess.run(["aws-vault", "exec", aws_profile, "--", "env"], capture_output=True)
-    env_var_bindings = dotenv.parser.parse_stream(StringIO(aws_vault_env_proc.stdout.decode("UTF-8")))
+    env_var_bindings = dotenv.parser.parse_stream(StringIO(aws_vault_env_proc.stdout.decode()))
     return {key: value for key, value, _, _ in env_var_bindings if key.startswith("AWS_")}
 
 
+class PoetryRepoConfig(TypedDict):
+    url: str
 
-class CodeArtifactAuthPlugin(ApplicationPlugin):
-    def __init__(self):
-        self._aws_profile = None
-        self._auth_method = None
-        self._source_name = None
-        self._profile = None
-        self._code_artifact_repo_config = None
-        self._app_config = None
 
-    def activate(self, application: Application):
-        application.event_dispatcher.add_listener(
-            COMMAND, self.authenticate
-        )
-        self._app_config = application.poetry.config
-        aws_account = self._app_config.get("codeartifact-auth.aws-account")
-        domain = self._app_config.get("codeartifact-auth.domain")
-        region = self._app_config.get("codeartifact-auth.region")
-        self._code_artifact_repo_config = CodeArtifactRepoConfig(aws_account, domain, region)
+def parse_poetry_repo_config(poetry_output: str) -> Dict[str, PoetryRepoConfig]:
+    return ast.literal_eval(poetry_output)
 
-        self._auth_method = self._app_config.get("codeartifact-auth.auth_method", "aws-vault")
-        if self._auth_method not in ("environment", "aws-vault"):
-            raise ValueError(f"Invalid auth method {self._auth_method}. Should be one of 'environment' or 'aws-vault'")
-        self._aws_profile = self._app_config.get("codeartifact-auth.aws-profile")
-        if self._auth_method == "aws-vault":
-            if self._aws_profile is None:
-                raise ValueError("Profile must be set if auth_method is 'aws-vault'")
-        self._source_name = self._app_config.get("codeartifact-auth.source", "codeartifact")
 
-    def authenticate(
-        self,
-        event: ConsoleCommandEvent,
-        event_name: str,
-        dispatcher: EventDispatcher
-    ) -> None:
-        command = event.command
-        if not (isinstance(command, UpdateCommand) or isinstance(command, LockCommand)):
-            return
+def poetry_repositories() -> Dict[str, PoetryRepoConfig]:
+    poetry_config_proc = subprocess.run(["poetry", "config", "repositories"], capture_output=True)
+    return parse_poetry_repo_config(poetry_config_proc.stdout.decode())
 
-        if self._auth_method == "aws-vault":
-            auth_token = get_auth_token_using_vault(
-                self._code_artifact_repo_config, self._profile
-            )
-        else:
-            auth_token = get_auth_token_using_env(self._code_artifact_repo_config)
 
-        self._app_config.merge(f"http-basic.{self._source_name}", f"aws {auth_token}")
+class AuthMethod(Enum):
+    ENV = "environment"
+    VAULT = "vault"
 
+
+class AuthConfig:
+    def __init__(self, method: AuthMethod, default_profile: str = "", profile_overrides = None):
+        self.method = method
+        self._default_profile = default_profile
+        self._profile_overrides = profile_overrides or {}
+
+    def aws_profile(self, repo_name: str):
+        return self._profile_overrides.get(repo_name, self._default_profile)
+
+
+def get_auth_token(repo_config: CodeArtifactRepoConfig, method: AuthMethod, aws_profile: str = ""):
+    if method == AuthMethod.ENV:
+        return get_auth_token_using_env(repo_config)
+    elif method == AuthMethod.VAULT:
+        return get_auth_token_using_vault(repo_config, aws_profile)
+
+
+def refresh_single_repo_auth(repo_name: str, token: str):
+    subprocess.run(["poetry", "config", f"http-basic.{repo_name}", "aws", token])
+
+
+def refresh_all_auth(config: AuthConfig):
+    for name, repo in poetry_repositories().items():
+        ca_config = CodeArtifactRepoConfig.from_url(repo['url'])
+        token = get_auth_token(ca_config, config.method)
+        refresh_single_repo_auth(name, token)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-a", "--auth-method", type=str, default=os.getenv("POETRY_CA_AUTH_METHOD", "vault"))
+    parser.add_argument("-p", "--profile-default", type=str, default=os.getenv("POETRY_CA_DEFAULT_AWS_PROFILE", ""))
+    parsed = parser.parse_args()
+    auth_method = AuthMethod(parsed.auth_method)
+    config = AuthConfig(auth_method, parsed.profile_default)
+    refresh_all_auth(config)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,5 +1,7 @@
-from poetry_codeartifact_auth import CodeArtifactRepoConfig
 import pytest
+
+from poetry_codeartifact_auth import CodeArtifactRepoConfig, parse_poetry_repo_config
+
 
 class TestCodeArtifactRepoConfig:
 
@@ -23,3 +25,8 @@ class TestCodeArtifactRepoConfig:
             CodeArtifactRepoConfig.from_url(
                 "https://example-domain-1234567.d.INVALID.us-west-2.amazonaws.com/some-suffix"
             )
+
+
+def test_parse_poetry_repo_config():
+    config_output = "{'example': {'url': 'https://repo.example.com'}}"
+    assert parse_poetry_repo_config(config_output)['example']['url'] == 'https://repo.example.com'
