@@ -7,6 +7,9 @@ packages = [
   { include = "poetry_codeartifact_auth.py" },
 ]
 
+[tool.poetry.scripts]
+poetry-ca-auth = "poetry_codeartifact_auth:main"
+
 [tool.poetry.dependencies]
 python = "^3.8"
 python-dotenv = "^0.21.0"
