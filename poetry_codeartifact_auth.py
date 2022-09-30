@@ -6,7 +6,7 @@ import logging
 import os
 import re
 import subprocess
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from enum import Enum
 from io import StringIO
 from typing import Dict, TypedDict
@@ -15,7 +15,6 @@ from urllib.parse import urlparse
 import boto3
 import dotenv.parser
 
-logging.basicConfig()
 LOG = logging.getLogger(__name__)
 
 
@@ -58,14 +57,24 @@ class AwsAuthParameters:
         )
 
 
-def get_auth_token_for_params(repo_config: CodeArtifactRepoConfig, auth_params: AwsAuthParameters):
+def get_auth_token_for_params(repo_config: CodeArtifactRepoConfig, auth_params: AwsAuthParameters) -> str:
     boto3_session = boto3.Session(**asdict(auth_params), region_name=repo_config.region)
     client = boto3_session.client("codeartifact")
-    return client.get_authorization_token(domain=repo_config.domain, domainOwner=repo_config.aws_account)
+    response = client.get_authorization_token(domain=repo_config.domain, domainOwner=repo_config.aws_account)
+    token = response['authorizationToken']
+    LOG.info(f"fetched_codeartifact_token expiry='{response['expiration']}' token=({len(token)} chars)")
+    return token
+
+
+class MissingAuthVarsException(Exception):
+    pass
 
 
 def get_auth_token_using_env(repo_config: CodeArtifactRepoConfig):
-    auth_params = AwsAuthParameters.from_env_auth_vars(os.environ)
+    try:
+        auth_params = AwsAuthParameters.from_env_auth_vars(os.environ)
+    except KeyError as e:
+        raise MissingAuthVarsException("One or more AWS_* auth vars was not found") from e
     return get_auth_token_for_params(repo_config, auth_params)
 
 
@@ -100,14 +109,14 @@ class AuthMethod(Enum):
     VAULT = "vault"
 
 
+@dataclass(frozen=True)
 class AuthConfig:
-    def __init__(self, method: AuthMethod, default_profile: str = "", profile_overrides = None):
-        self.method = method
-        self._default_profile = default_profile
-        self._profile_overrides = profile_overrides or {}
+    method: AuthMethod
+    default_profile: str = ""
+    profile_overrides: Dict[str, str] = field(default_factory=dict)
 
-    def aws_profile(self, repo_name: str):
-        return self._profile_overrides.get(repo_name, self._default_profile)
+    def profile_for_repo(self, repo_name: str):
+        return self.profile_overrides.get(repo_name, self.default_profile)
 
 
 def get_auth_token(repo_config: CodeArtifactRepoConfig, method: AuthMethod, aws_profile: str = ""):
@@ -122,20 +131,50 @@ def refresh_single_repo_auth(repo_name: str, token: str):
 
 
 def refresh_all_auth(config: AuthConfig):
-    for name, repo in poetry_repositories().items():
+    repositories = poetry_repositories()
+    if not repositories:
+        raise ValueError("No repositories found")
+    for name, repo in repositories.items():
+        LOG.debug(f"handling_poetry_repo {name=} {repo=}")
         ca_config = CodeArtifactRepoConfig.from_url(repo['url'])
-        token = get_auth_token(ca_config, config.method)
+        token = get_auth_token(ca_config, config.method, config.profile_for_repo(name))
+        LOG.info(f"storing_poetry_auth_token {name=} token=({len(token)} chars)")
         refresh_single_repo_auth(name, token)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-a", "--auth-method", type=str, default=os.getenv("POETRY_CA_AUTH_METHOD", "vault"))
-    parser.add_argument("-p", "--profile-default", type=str, default=os.getenv("POETRY_CA_DEFAULT_AWS_PROFILE", ""))
+    parser.add_argument(
+        "-a",
+        "--auth-method",
+        type=str,
+        default=os.getenv("POETRY_CA_AUTH_METHOD", "vault"),
+        choices=[v.value for v in AuthMethod],
+        help="Authentication method. Use `vault` (recommended) to authenticate using AWS vault. "
+             "With `environment`, AWS authentication variables must be present in the environment."
+             "Defaults to value in `POETRY_CA_AUTH_METHOD` environment variable."
+    )
+    parser.add_argument(
+        "-p",
+        "--profile-default",
+        type=str,
+        default=os.getenv("POETRY_CA_DEFAULT_AWS_PROFILE", ""),
+        help="aws-vault profile to us if auth method is 'vault'."
+             "Defaults to value in `POETRY_CA_DEFAULT_AWS_PROFILE` environment variable."
+    )
+    parser.add_argument("-v", action="store_true", dest='verbose')
+    parser.add_argument("-vv", action="store_true", dest='very_verbose')
     parsed = parser.parse_args()
     auth_method = AuthMethod(parsed.auth_method)
-    config = AuthConfig(auth_method, parsed.profile_default)
-    refresh_all_auth(config)
+    auth_config = AuthConfig(auth_method, parsed.profile_default)
+    if parsed.very_verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    elif parsed.verbose:
+        logging.basicConfig(level=logging.INFO)
+    else:
+        logging.basicConfig(level=logging.WARN)
+    LOG.debug(f"parsed_auth_config {auth_config=}")
+    refresh_all_auth(auth_config)
 
 
 if __name__ == "__main__":
