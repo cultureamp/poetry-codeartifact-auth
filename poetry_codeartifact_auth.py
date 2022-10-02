@@ -187,7 +187,13 @@ def refresh_all_auth(config: AuthConfig):
 def main():
     """Main command line function"""
     parser = argparse.ArgumentParser()
-    parser.add_argument(
+    parser.add_argument("-v", action="store_true", dest="verbose")
+    parser.add_argument("-vv", action="store_true", dest="very_verbose")
+
+    subparsers = parser.add_subparsers(dest="subcommand")
+
+    refresh = subparsers.add_parser("refresh", help="refresh CodeArtifact authentication token")
+    refresh.add_argument(
         "-a",
         "--auth-method",
         type=str,
@@ -197,7 +203,7 @@ def main():
         "With `environment`, AWS authentication variables must be present in the environment."
         "Defaults to value in `POETRY_CA_AUTH_METHOD` environment variable.",
     )
-    parser.add_argument(
+    refresh.add_argument(
         "-p",
         "--profile-default",
         type=str,
@@ -205,19 +211,22 @@ def main():
         help="aws-vault profile to us if auth method is 'vault'."
         "Defaults to value in `POETRY_CA_DEFAULT_AWS_PROFILE` environment variable.",
     )
-    parser.add_argument("-v", action="store_true", dest="verbose")
-    parser.add_argument("-vv", action="store_true", dest="very_verbose")
     parsed = parser.parse_args()
-    auth_method = AwsAuthMethod(parsed.auth_method)
-    auth_config = AuthConfig(auth_method, parsed.profile_default)
+
     if parsed.very_verbose:
         logging.basicConfig(level=logging.DEBUG)
     elif parsed.verbose:
         logging.basicConfig(level=logging.INFO)
     else:
         logging.basicConfig(level=logging.WARN)
-    LOG.debug(f"parsed_auth_config {auth_config=}")
-    refresh_all_auth(auth_config)
+
+    if parsed.subcommand == "refresh":
+        auth_method = AwsAuthMethod(parsed.auth_method)
+        auth_config = AuthConfig(auth_method, parsed.profile_default)
+        LOG.debug(f"parsed_auth_config {auth_config=}")
+        refresh_all_auth(auth_config)
+    else:
+        raise ValueError("Unknown command")
 
 
 if __name__ == "__main__":
