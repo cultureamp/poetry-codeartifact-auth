@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 import boto3
 import dotenv.parser
+import pkg_resources
 
 LOG = logging.getLogger(__name__)
 
@@ -187,15 +188,22 @@ def refresh_all_auth(config: AuthConfig):
 def main():
     """Main command line function"""
     parser = argparse.ArgumentParser()
-    parser.add_argument("-v", action="store_true", dest="verbose")
-    parser.add_argument("-vv", action="store_true", dest="very_verbose")
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="count",
+        default=0,
+        dest="verbosity",
+        help="Increase verbosity level (repeat for debug logging)",
+    )
+    parser.add_argument("--version", action="store_true", help="Print version and exit")
 
     subparsers = parser.add_subparsers(dest="subcommand")
 
     refresh = subparsers.add_parser("refresh", help="refresh CodeArtifact authentication token")
     refresh.add_argument(
-        "-a",
         "--auth-method",
+        "-a",
         type=str,
         default=os.getenv("POETRY_CA_AUTH_METHOD", "vault"),
         choices=[v.value for v in AwsAuthMethod],
@@ -204,8 +212,8 @@ def main():
         "Defaults to value in `POETRY_CA_AUTH_METHOD` environment variable.",
     )
     refresh.add_argument(
-        "-p",
         "--profile-default",
+        "-p",
         type=str,
         default=os.getenv("POETRY_CA_DEFAULT_AWS_PROFILE", ""),
         help="aws-vault profile to us if auth method is 'vault'."
@@ -213,14 +221,16 @@ def main():
     )
     parsed = parser.parse_args()
 
-    if parsed.very_verbose:
+    if parsed.verbosity >= 2:
         logging.basicConfig(level=logging.DEBUG)
-    elif parsed.verbose:
+    elif parsed.verbosity == 1:
         logging.basicConfig(level=logging.INFO)
     else:
         logging.basicConfig(level=logging.WARN)
 
-    if parsed.subcommand == "refresh":
+    if parsed.version:
+        print(pkg_resources.get_distribution("poetry-codeartifact-auth").version)
+    elif parsed.subcommand == "refresh":
         auth_method = AwsAuthMethod(parsed.auth_method)
         auth_config = AuthConfig(auth_method, parsed.profile_default)
         LOG.debug(f"parsed_auth_config {auth_config=}")
