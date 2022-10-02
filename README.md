@@ -43,3 +43,16 @@ If `aws-vault` doesn't fit your needs, you can also just pull the AWS credential
 
 * Currently only supports a single AWS profile configured via environment. If you have multiple CodeArtifact repositories with different authentication, the code would need a patch to handle this
 * Not currently tested for authentication flows which require user interaction at the CLI console – eg if you are not using AWS SSO but are using MFA. But it may work fine.
+
+
+## Developing
+
+Make sure to install development dependencies, eg using `poetry install` (which installs them by default).
+
+Make sure you have [pre-commit](https://pre-commit.com) installed on your machine. Then, as a one-off, run:
+
+    pre-commit install --install-hooks
+
+This will then make sure various checks are run on files when you commit.
+
+Tests can be run with `pytest`.
