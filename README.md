@@ -66,3 +66,15 @@ Tests can be run with `pytest`.
 ## Availability on Public Repositories
 
 This package would likely be suitable to release publicly and publish on PyPI, however we have not yet set up the publication pipeline for this. As it is a standalone tool, and not something that third party code should depend on directly, it should not be a problem to install directly from a Git SSH URL.
+
+## Specifics for Culture Amp
+
+If following the recommended `aws-vault` route, you probably want to check out the [wiki instructions](https://cultureamp.atlassian.net/wiki/spaces/SEC/pages/2744649490/AWS+SSO+Okta+-+User+Guides#Generating-a-CultureAmp-configuration-file) and then set
+
+```
+    POETRY_CA_DEFAULT_AWS_PROFILE=cultureamp-continuous-integration:CiUserRole
+```
+
+in your shell's persistent config (eg `.bashrc`).
+
+If you want to follow the higher friction route you can copy in AWS credentials from the [SSO landing page]("https://d-92677b0242.awsapps.com/start#/) each time you need to refresh authentication, and pass `--auth-mode environment` to `poetry-ca-auth refresh`.
