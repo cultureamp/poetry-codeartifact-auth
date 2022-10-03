@@ -16,6 +16,10 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.8'
+      - name: Install tools
+        run: |
+          pipx install poetry
+          pipx install pre-commit
       - name: Formatting
         run: |
           pre-commit run trailing-whitespace --all-files
