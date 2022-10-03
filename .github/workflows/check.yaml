@@ -26,9 +26,11 @@ jobs:
           pre-commit run black --all-files
       - name: Install
         run: |
-          poetry install .
+          poetry install
       - name: Lint
+        run: |
           pre-commit run mypy --all-files
           pre-commit run pylint --all-files
       - name: Test
+        run: |
           pytest
