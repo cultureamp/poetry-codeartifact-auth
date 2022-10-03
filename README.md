@@ -1,6 +1,8 @@
-**Note**: Culture Amp has built this tool for internal use but has limited capacity to support this product.
-It is provided on an as-is basis. Bugfix PRs may get looked at, but feature development is likely to be very limited
-and driven by internal needs.
+[//]: # (**Note**: Culture Amp has built this tool for internal use but has limited capacity to support this product.)
+
+[//]: # (It is provided on an as-is basis. Bugfix PRs may get looked at, but feature development is likely to be very limited)
+
+[//]: # (and driven by internal needs.)
 
 # Poetry CodeArtifact Auth Plugin
 
@@ -17,8 +19,11 @@ It supports AWS SSO login (via `aws-vault`) to fetch the CodeArtifact authentica
 
 1. Install somewhere on your system using
 ```
-    pip install poetry-codeartifact-auth
+    pip3 install git+ssh://git@github.com/cultureamp/poetry-codeartifact-auth.git
 ```
+
+(you will need [Github SSH Authentication](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) set up already. Alternatively you can probably set up HTTPS authentication use the `https` URL). See notes below about package publication status. The intent is to install this globally (but if you have global dependency conflicts you could create a custom virtual environment and set up a command alias to run in the virtual environment. This is likely not needed though).
+
 2. If not already added, add the CodeArtifact repository URL to your `pyproject.toml`. The URL will look something like `https://yourorg-python-ci-12346789012.d.codeartifact.us-west-2.amazonaws.com/pypi/some-named-private-python-repo/simple`. Follow Poetry's [instructions](https://python-poetry.org/docs/repositories/#secondary-package-sources) for adding this. The CodeArtifact `domain`, `domainOwner` (AWS account ID) and `region` are inferred from the repository URL when fetching auth credentials.
 
 3. Set up AWS authentication as described below
@@ -56,3 +61,8 @@ Make sure you have [pre-commit](https://pre-commit.com) installed on your machin
 This will then make sure various checks are run on files when you commit.
 
 Tests can be run with `pytest`.
+
+
+## Availability on Public Repositories
+
+This package would likely be suitable to release publicly and publish on PyPI, however we have not yet set up the publication pipeline for this. As it is a standalone tool, and not something that third party code should depend on directly, it should not be a problem to install directly from a Git SSH URL.
