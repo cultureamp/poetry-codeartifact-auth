@@ -29,8 +29,8 @@ jobs:
           poetry install
       - name: Lint
         run: |
-          pre-commit run mypy --all-files
-          pre-commit run pylint --all-files
+          poetry run pre-commit run mypy --all-files
+          poetry run pre-commit run pylint --all-files
       - name: Test
         run: |
-          pytest
+          poetry run pytest
