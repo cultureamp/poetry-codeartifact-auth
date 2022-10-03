@@ -13,13 +13,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Install tools
-        run: |
-          pipx install poetry
-          pipx install pre-commit
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.8'
       - name: Formatting
         run: |
           pre-commit run trailing-whitespace --all-files
