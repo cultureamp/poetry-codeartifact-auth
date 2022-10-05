@@ -172,7 +172,10 @@ def refresh_all_auth(config: AuthConfig):
     """Store authentication information inside Poetry for a single repository"""
     repositories = poetry_repositories()
     if not repositories:
-        raise ValueError("No repositories found")
+        raise ValueError(
+            "No repositories found. If you have repositories in pyproject.toml, please make"
+            " sure you have poetry 1.2 or later installed"
+        )
     for name, repo in repositories.items():
         LOG.debug(f"handling_poetry_repo {name=} {repo=}")
         try:
