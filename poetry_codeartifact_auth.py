@@ -7,10 +7,11 @@ import logging
 import os
 import re
 import subprocess
+from collections import namedtuple
 from dataclasses import dataclass, asdict, field
 from enum import Enum
 from io import StringIO
-from typing import Dict, TypedDict, cast, Tuple, Iterable
+from typing import Dict, TypedDict, cast, Iterable, Union
 from urllib.parse import urlparse
 
 import boto3
@@ -24,6 +25,9 @@ _CODEARTIFACT_URL_RE = re.compile(
     r"^(?P<domain>[\w-]+)-(?P<aws_account>\d+)\.d\.codeartifact\.(?P<region>[\w-]+)\.amazonaws\.com$"
 )
 _DEFAULT_DURATION = 12 * 60 * 60
+
+
+NameAndToken = namedtuple("NameAndToken", ["name", "token"])
 
 
 class CodeArtifactUrlParseException(Exception):
@@ -182,17 +186,50 @@ def show_auth_token(config: AuthConfig):
     print(token)
 
 
-def show_auth_env_vars(config: AuthConfig):
-    """Show environment variables for authentication"""
-    for name, token in _fetch_auth_tokens(config):
+def _get_auth_env_vars(config: AuthConfig) -> Dict[str, str]:
+    tokens = _fetch_auth_tokens(config)
+    return _vars_for_auth_tokens(tokens)
+
+
+def _vars_for_auth_tokens(tokens: Iterable[NameAndToken]) -> Dict[str, str]:
+    result = {}
+    for name, token in tokens:
         name_for_env_var = name.upper().replace("-", "_")
         password_env_var_name = f"POETRY_HTTP_BASIC_{name_for_env_var}_PASSWORD"
         user_env_var_name = f"POETRY_HTTP_BASIC_{name_for_env_var}_USERNAME"
-        print(f"export {password_env_var_name}='{token}'")
-        print(f"export {user_env_var_name}='aws'")
+        result[password_env_var_name] = token
+        result[user_env_var_name] = "aws"
+    return result
 
 
-def _fetch_auth_tokens(config: AuthConfig) -> Iterable[Tuple[str, str]]:
+def show_auth_env_vars(config: AuthConfig):
+    """Show environment variables for authentication"""
+    for var_name, value in _get_auth_env_vars(config).items():
+        print(f"export {var_name}='{value}'")
+
+
+def _touch(filepath: Union[str, os.PathLike]):
+    with open(filepath, "w+", encoding="UTF-8") as _:
+        pass
+
+
+def write_auth_to_dotenv(
+    config: AuthConfig,
+    env_path: Union[str, os.PathLike],
+    create: bool = False,
+    export: bool = False,
+):
+    """Write authentication variables to a dotenv"""
+    if create:
+        _touch(env_path)
+        LOG.debug(f"creating_file {env_path=}")
+    for var_name, value in _get_auth_env_vars(config).items():
+        dotenv.set_key(env_path, var_name, value, export=export)
+        LOG.debug(f"set_env_var {env_path=} {var_name=} {value=}")
+    LOG.info(f"wrote_env_vars {env_path=}")
+
+
+def _fetch_auth_tokens(config: AuthConfig) -> Iterable[NameAndToken]:
     repositories = poetry_repositories()
     if not repositories:
         raise ValueError(
@@ -206,7 +243,8 @@ def _fetch_auth_tokens(config: AuthConfig) -> Iterable[Tuple[str, str]]:
         except CodeArtifactUrlParseException:
             LOG.info(f"ignoring_apparent_non_codeartifact_repo {name=} {repo=}")
             continue
-        yield name, get_ca_auth_token(ca_config, config.method, config.profile_for_repo(name))
+        token = get_ca_auth_token(ca_config, config.method, config.profile_for_repo(name))
+        yield NameAndToken(name, token)
 
 
 def refresh_all_auth(config: AuthConfig):
@@ -269,6 +307,26 @@ def main():
         " here to reduce change of credentials leakage)",
     )
 
+    write_dotenv = subparsers.add_parser(
+        "write-to-dotenv",
+        help="write auth vars to a .env file (recommendation: use a short `--duration` parameter"
+        " here to reduce change of credentials leakage). Useful for eg docker-compose",
+    )
+
+    write_dotenv.add_argument(
+        "-e",
+        "--export",
+        action="store_true",
+        help="prefix variable with `export ` to create a sourceable .env instead of one for docker-compose",
+    )
+    write_dotenv.add_argument("-f", "--file", default=".env", help="name of .env file to write to")
+    write_dotenv.add_argument(
+        "-c",
+        "--create",
+        action="store_true",
+        help="create dotenv file if it does not already exist",
+    )
+
     parsed = parser.parse_args()
 
     if parsed.verbosity >= 2:
@@ -280,7 +338,7 @@ def main():
 
     if parsed.version:
         print(pkg_resources.get_distribution("poetry-codeartifact-auth").version)
-    elif parsed.subcommand in ("refresh", "show-token", "show-auth-env-vars"):
+    else:
         auth_method = AwsAuthMethod(parsed.auth_method)
         auth_config = AuthConfig(auth_method, parsed.profile_default)
         LOG.debug(f"parsed_auth_config {auth_config=}")
@@ -290,8 +348,10 @@ def main():
             show_auth_token(auth_config)
         elif parsed.subcommand == "show-auth-env-vars":
             show_auth_env_vars(auth_config)
-    else:
-        raise ValueError("Unknown command")
+        elif parsed.subcommand == "write-to-dotenv":
+            write_auth_to_dotenv(
+                auth_config, parsed.file, create=parsed.create, export=parsed.export
+            )
 
 
 if __name__ == "__main__":
