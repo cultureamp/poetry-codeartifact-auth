@@ -10,7 +10,7 @@ import subprocess
 from dataclasses import dataclass, asdict, field
 from enum import Enum
 from io import StringIO
-from typing import Dict, TypedDict, cast
+from typing import Dict, TypedDict, cast, Tuple, Iterable
 from urllib.parse import urlparse
 
 import boto3
@@ -23,6 +23,7 @@ LOG = logging.getLogger(__name__)
 _CODEARTIFACT_URL_RE = re.compile(
     r"^(?P<domain>[\w-]+)-(?P<aws_account>\d+)\.d\.codeartifact\.(?P<region>[\w-]+)\.amazonaws\.com$"
 )
+_DEFAULT_DURATION = 12 * 60 * 60
 
 
 class CodeArtifactUrlParseException(Exception):
@@ -70,13 +71,17 @@ class AwsAuthParameters:
 
 
 def get_ca_auth_token_for_params(
-    repo_config: CodeArtifactRepoConfig, auth_params: AwsAuthParameters
+    repo_config: CodeArtifactRepoConfig,
+    auth_params: AwsAuthParameters,
+    duration_seconds: int = None,
 ) -> str:
     """Fetch a CodeArtifact token enabling repository access"""
     boto3_session = boto3.Session(**asdict(auth_params), region_name=repo_config.region)
     client = boto3_session.client("codeartifact")
     response = client.get_authorization_token(
-        domain=repo_config.domain, domainOwner=repo_config.aws_account
+        domain=repo_config.domain,
+        domainOwner=repo_config.aws_account,
+        durationSeconds=(duration_seconds or _DEFAULT_DURATION),
     )
     token = response["authorizationToken"]
     LOG.info(
@@ -168,8 +173,26 @@ def _refresh_single_repo_auth(repo_name: str, token: str):
     subprocess.run(["poetry", "config", f"http-basic.{repo_name}", "aws", token], check=True)
 
 
-def refresh_all_auth(config: AuthConfig):
+def show_auth_token(config: AuthConfig):
     """Store authentication information inside Poetry for a single repository"""
+    names_tokens = list(_fetch_auth_tokens(config))
+    if len(names_tokens) > 1:
+        raise ValueError(f"Multiple repositories are available")
+    [(_, token)] = names_tokens
+    print(token)
+
+
+def show_auth_env_vars(config: AuthConfig):
+    """Show environment variables for authentication"""
+    for name, token in _fetch_auth_tokens(config):
+        name_for_env_var = name.upper().replace("-", "_")
+        password_env_var_name = f"POETRY_HTTP_BASIC_{name_for_env_var}_PASSWORD"
+        user_env_var_name = f"POETRY_HTTP_BASIC_{name_for_env_var}_USERNAME"
+        print(f"export {password_env_var_name}='{token}'")
+        print(f"export {user_env_var_name}='aws'")
+
+
+def _fetch_auth_tokens(config: AuthConfig) -> Iterable[Tuple[str, str]]:
     repositories = poetry_repositories()
     if not repositories:
         raise ValueError(
@@ -183,7 +206,12 @@ def refresh_all_auth(config: AuthConfig):
         except CodeArtifactUrlParseException:
             LOG.info(f"ignoring_apparent_non_codeartifact_repo {name=} {repo=}")
             continue
-        token = get_ca_auth_token(ca_config, config.method, config.profile_for_repo(name))
+        yield name, get_ca_auth_token(ca_config, config.method, config.profile_for_repo(name))
+
+
+def refresh_all_auth(config: AuthConfig):
+    """Store authentication information inside Poetry for a single repository"""
+    for name, token in _fetch_auth_tokens(config):
         LOG.info(f"storing_poetry_auth_token {name=} token=({len(token)} chars)")
         _refresh_single_repo_auth(name, token)
 
@@ -200,11 +228,7 @@ def main():
         help="Increase verbosity level (repeat for debug logging)",
     )
     parser.add_argument("--version", action="store_true", help="Print version and exit")
-
-    subparsers = parser.add_subparsers(dest="subcommand")
-
-    refresh = subparsers.add_parser("refresh", help="refresh CodeArtifact authentication token")
-    refresh.add_argument(
+    parser.add_argument(
         "--auth-method",
         "-a",
         type=str,
@@ -214,7 +238,7 @@ def main():
         "With `environment`, AWS authentication variables must be present in the environment."
         "Defaults to value in `POETRY_CA_AUTH_METHOD` environment variable.",
     )
-    refresh.add_argument(
+    parser.add_argument(
         "--profile-default",
         "-p",
         type=str,
@@ -222,6 +246,29 @@ def main():
         help="aws-vault profile to us if auth method is 'vault'."
         "Defaults to value in `POETRY_CA_DEFAULT_AWS_PROFILE` environment variable.",
     )
+
+    parser.add_argument(
+        "--duration",
+        "-d",
+        type=int,
+        default=_DEFAULT_DURATION,
+        help="Lifetime of token. Make this as short as practical unless it is being stored securely",
+    )
+    subparsers = parser.add_subparsers(dest="subcommand")
+
+    subparsers.add_parser(
+        "refresh", help="refresh CodeArtifact authentication token in Poetry config"
+    )
+    subparsers.add_parser(
+        "show-token", help="fetch CodeArtifact authentication token and display in console"
+    )
+    subparsers.add_parser(
+        "show-auth-env-vars",
+        help="fetch CodeArtifact authentication tokens as environment variables "
+        "suitable for Poetry and write to stdout (recommendation: use a short `--duration` parameter"
+        " here to reduce change of credentials leakage)",
+    )
+
     parsed = parser.parse_args()
 
     if parsed.verbosity >= 2:
@@ -233,11 +280,16 @@ def main():
 
     if parsed.version:
         print(pkg_resources.get_distribution("poetry-codeartifact-auth").version)
-    elif parsed.subcommand == "refresh":
+    elif parsed.subcommand in ("refresh", "show-token", "show-auth-env-vars"):
         auth_method = AwsAuthMethod(parsed.auth_method)
         auth_config = AuthConfig(auth_method, parsed.profile_default)
         LOG.debug(f"parsed_auth_config {auth_config=}")
-        refresh_all_auth(auth_config)
+        if parsed.subcommand == "refresh":
+            refresh_all_auth(auth_config)
+        elif parsed.subcommand == "show-token":
+            show_auth_token(auth_config)
+        elif parsed.subcommand == "show-auth-env-vars":
+            show_auth_env_vars(auth_config)
     else:
         raise ValueError("Unknown command")
 

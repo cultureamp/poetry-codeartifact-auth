@@ -33,7 +33,7 @@ It supports AWS SSO login (via `aws-vault`) to fetch the CodeArtifact authentica
     poetry-ca-auth refresh
 ```
 
-This will trigger the authentication procedure, regardless of whether the token is expired. If you are using AWS SSO there will be a seemingly endless series of redirects but it seems to work effectively.
+This will trigger the authentication procedure, regardless of whether the token is expired. If you are using AWS SSO there will be a seemingly endless series of redirects but it seems to work effectively. The credentials will be saved used Poetry's credential saving mechanism which should work for any local builds on your machine. If you have other use cases (eg Docker builds), you may want to use the `show-token` or `show-auth-env-var` subcommands.
 
 ### Using `aws-vault` (recommended)
 
