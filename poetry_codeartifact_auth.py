@@ -11,12 +11,14 @@ from collections import namedtuple
 from dataclasses import dataclass, asdict, field
 from enum import Enum
 from io import StringIO
+from pathlib import Path
 from typing import Dict, TypedDict, cast, Iterable, Union
 from urllib.parse import urlparse
 
 import boto3
 import dotenv.parser
 import pkg_resources
+import toml
 
 LOG = logging.getLogger(__name__)
 
@@ -98,6 +100,10 @@ class MissingAuthVarsException(Exception):
     """Exception when authentication variables are not found in the environment"""
 
 
+class MissingPyprojectTomlFile(Exception):
+    """Exception when a pyproject.toml was not found by walking up the directory tree"""
+
+
 def _get_auth_params_using_env() -> AwsAuthParameters:
     """Get AWS auth parameters from environment variables"""
     try:
@@ -133,12 +139,39 @@ def parse_poetry_repo_config(poetry_output: str) -> Dict[str, _PoetryRepoConfig]
     return ast.literal_eval(poetry_output)
 
 
+def _find_pyproject_toml_path(cwd: str = None):
+    fs_path = Path(cwd or os.getcwd())
+
+    def toml_path():
+        return fs_path / "pyproject.toml"
+
+    while not toml_path().exists():
+        fs_path = fs_path.parent
+        if fs_path == fs_path.root:
+            raise MissingPyprojectTomlFile(
+                "Hit root directory while attempting to find pyproject.toml"
+            )
+    return toml_path()
+
+
+def _get_repo_config_from_pyproject_toml(toml_path: Path) -> Dict[str, _PoetryRepoConfig]:
+    parsed = toml.load(toml_path)
+    return {info["name"]: info for info in parsed["tool"]["poetry"].get("source", [])}
+
+
 def poetry_repositories() -> Dict[str, _PoetryRepoConfig]:
     """Get repositories configured in Poetry"""
     poetry_config_proc = subprocess.run(
         ["poetry", "config", "repositories"], capture_output=True, check=True
     )
-    return parse_poetry_repo_config(poetry_config_proc.stdout.decode())
+    config_from_poetry = parse_poetry_repo_config(poetry_config_proc.stdout.decode())
+    if config_from_poetry:
+        return config_from_poetry
+    LOG.warning(
+        f"No repositories found in Poetry config (possibly due to poetry < 1.2."
+        "Parsing pyproject.toml directly"
+    )
+    return _get_repo_config_from_pyproject_toml(_find_pyproject_toml_path())
 
 
 class AwsAuthMethod(Enum):
@@ -233,8 +266,8 @@ def _fetch_auth_tokens(config: AuthConfig) -> Iterable[NameAndToken]:
     repositories = poetry_repositories()
     if not repositories:
         raise ValueError(
-            "No repositories found. If you have repositories in pyproject.toml, please make"
-            " sure you have poetry 1.2 or later installed"
+            "No repositories found. Make sure a valid pyproject.toml which defines "
+            "extra sources is available in a current or parent directory"
         )
     for name, repo in repositories.items():
         LOG.debug(f"handling_poetry_repo {name=} {repo=}")
@@ -286,8 +319,8 @@ def main():
     )
 
     parser.add_argument(
-        "--duration",
-        "-d",
+        "--duration-minutes",
+        "-m",
         type=int,
         default=_DEFAULT_DURATION,
         help="Lifetime of token. Make this as short as practical unless it is being stored securely",

@@ -1,11 +1,33 @@
 # pylint:disable=missing-docstring
+from pathlib import Path
+
 import pytest
 
 from poetry_codeartifact_auth import (
     CodeArtifactRepoConfig,
     parse_poetry_repo_config,
     CodeArtifactUrlParseException,
+    _find_pyproject_toml_path,
+    _get_repo_config_from_pyproject_toml,
 )
+
+
+def test__find_pyproject_toml_path():
+    test_files_root = Path(__file__).parent / "files"
+    expected_toml_path = test_files_root / "pyproject.toml"
+
+    assert _find_pyproject_toml_path(str(test_files_root)) == expected_toml_path
+    assert _find_pyproject_toml_path(str(test_files_root / "subdir")) == expected_toml_path
+    assert (
+        _find_pyproject_toml_path(str(test_files_root / "subdir" / "subsubdir"))
+        == expected_toml_path
+    )
+
+
+def test__get_repo_config_from_pyproject_toml():
+    toml_path = Path(__file__).parent / "files" / "pyproject.toml"
+    expected_url = "https://banana.repo.example.com/python-repo-path"
+    assert _get_repo_config_from_pyproject_toml(toml_path)["banana"]["url"] == expected_url
 
 
 class TestCodeArtifactRepoConfig:
