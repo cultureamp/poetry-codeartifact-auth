@@ -111,9 +111,15 @@ class MissingPyprojectTomlFile(Exception):
 def _aws_auth_vars_from_vault(aws_profile: str) -> Dict[str, str]:
     if not aws_profile:
         raise ValueError("Profile must be set to use aws-vault")
-    aws_vault_env_proc = subprocess.run(
-        ["aws-vault", "exec", aws_profile, "--", "env"], capture_output=True, check=True
-    )
+    try:
+        aws_vault_env_proc = subprocess.run(
+            ["aws-vault", "exec", aws_profile, "--", "env"],
+            capture_output=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        LOG.error(exc.stderr.decode())
+        raise
     env_var_bindings = dotenv.parser.parse_stream(StringIO(aws_vault_env_proc.stdout.decode()))
     auth_vars = {
         key: value for key, value, _, _ in env_var_bindings if key and key.startswith("AWS_")
