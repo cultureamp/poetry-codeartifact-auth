@@ -12,7 +12,7 @@ from dataclasses import dataclass, asdict, field
 from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import Dict, TypedDict, cast, Iterable, Union
+from typing import Dict, TypedDict, cast, Iterable, Union, Optional
 from urllib.parse import urlparse
 
 import boto3
@@ -81,11 +81,12 @@ class AwsAuthParameters:
 
 def get_ca_auth_token_for_params(
     repo_config: CodeArtifactRepoConfig,
-    auth_params: AwsAuthParameters,
+    auth_params: Optional[AwsAuthParameters],
     duration_seconds: int = None,
 ) -> str:
     """Fetch a CodeArtifact token enabling repository access"""
-    boto3_session = boto3.Session(**asdict(auth_params), region_name=repo_config.region)
+    auth_args = asdict(auth_params) if auth_params else {}
+    boto3_session = boto3.Session(**auth_args, region_name=repo_config.region)
     client = boto3_session.client("codeartifact")
     response = client.get_authorization_token(
         domain=repo_config.domain,
@@ -167,6 +168,7 @@ def poetry_repositories() -> Dict[str, _PoetryRepoConfig]:
 class AwsAuthMethod(Enum):
     """Authentication method to use for AWS call to get CodeArtifact token"""
 
+    NONE = "none"
     ENV = "environment"
     VAULT = "vault"
 
@@ -184,7 +186,7 @@ class AuthConfig:
         return self.profile_overrides.get(repo_name, self.default_profile)
 
 
-def auth_params_from_config(config: AuthConfig, repo_name: str) -> AwsAuthParameters:
+def auth_params_from_config(config: AuthConfig, repo_name: str) -> Optional[AwsAuthParameters]:
     """Get AWS authentication parameters"""
     if config.method in (AwsAuthMethod.VAULT, AwsAuthMethod.ENV):
         if config.method == AwsAuthMethod.VAULT:
@@ -195,6 +197,8 @@ def auth_params_from_config(config: AuthConfig, repo_name: str) -> AwsAuthParame
         else:
             raise ValueError("Invalid authentication method")
         return AwsAuthParameters.from_env_auth_vars(env_auth_vars)
+    if config.method == AwsAuthMethod.NONE:
+        return None
     raise ValueError("Invalid authentication method")
 
 
