@@ -7,7 +7,6 @@ import logging
 import os
 import re
 import subprocess
-from abc import abstractmethod
 from collections import namedtuple
 from dataclasses import dataclass, asdict, field
 from enum import Enum
@@ -70,11 +69,14 @@ class AwsAuthParameters:
     @staticmethod
     def from_env_auth_vars(auth_vars: Dict[str, str]):
         """Extract authentication parameters from environment variables"""
-        return AwsAuthParameters(
-            auth_vars["AWS_ACCESS_KEY_ID"],
-            auth_vars["AWS_SECRET_ACCESS_KEY"],
-            auth_vars["AWS_SESSION_TOKEN"],
-        )
+        try:
+            return AwsAuthParameters(
+                auth_vars["AWS_ACCESS_KEY_ID"],
+                auth_vars["AWS_SECRET_ACCESS_KEY"],
+                auth_vars["AWS_SESSION_TOKEN"],
+            )
+        except KeyError as exc:
+            raise MissingAuthVarsException("One or more AWS_* auth vars was not found") from exc
 
 
 def get_ca_auth_token_for_params(
@@ -106,6 +108,8 @@ class MissingPyprojectTomlFile(Exception):
 
 
 def _aws_auth_vars_from_vault(aws_profile: str) -> Dict[str, str]:
+    if not aws_profile:
+        raise ValueError("Profile must be set to use aws-vault")
     aws_vault_env_proc = subprocess.run(
         ["aws-vault", "exec", aws_profile, "--", "env"], capture_output=True, check=True
     )
@@ -180,33 +184,18 @@ class AuthConfig:
         return self.profile_overrides.get(repo_name, self.default_profile)
 
 
-class AwsAuthSource:
-    @abstractmethod
-    def get_parameters(self) -> AwsAuthParameters:
-        pass
-
-
-class EnvironmentAwsAuthSource(AwsAuthSource):
-    def get_parameters(self) -> AwsAuthParameters:
-        try:
-            return AwsAuthParameters.from_env_auth_vars(dict(os.environ))
-        except KeyError as exc:
-            raise MissingAuthVarsException("One or more AWS_* auth vars was not found") from exc
-
-
-class VaultAwsAuthSource(AwsAuthSource):
-    def __init__(self, aws_profile: str):
-        if not aws_profile:
-            raise ValueError("Profile must be set to use aws-vault")
-        self.aws_profile = aws_profile
-
-    def get_parameters(self) -> AwsAuthParameters:
-        return AwsAuthParameters.from_env_auth_vars(_aws_auth_vars_from_vault(self.aws_profile))
-
-
-def get_ca_auth_token(repo_config: CodeArtifactRepoConfig, auth_source: AwsAuthSource):
-    """Get CodeArtifact authentication token using the requested AWS authentication method"""
-    return get_ca_auth_token_for_params(repo_config, auth_source.get_parameters())
+def auth_params_from_config(config: AuthConfig, repo_name: str) -> AwsAuthParameters:
+    """Get AWS authentication parameters"""
+    if config.method in (AwsAuthMethod.VAULT, AwsAuthMethod.ENV):
+        if config.method == AwsAuthMethod.VAULT:
+            profile = config.profile_for_repo(repo_name)
+            env_auth_vars = _aws_auth_vars_from_vault(profile)
+        elif config.method == AwsAuthMethod.ENV:
+            env_auth_vars = dict(os.environ)
+        else:
+            raise ValueError("Invalid authentication method")
+        return AwsAuthParameters.from_env_auth_vars(env_auth_vars)
+    raise ValueError("Invalid authentication method")
 
 
 def _refresh_single_repo_auth(repo_name: str, token: str):
@@ -280,14 +269,7 @@ def _fetch_auth_tokens(config: AuthConfig) -> Iterable[NameAndToken]:
             LOG.info(f"ignoring_apparent_non_codeartifact_repo {name=} {repo=}")
             continue
 
-        auth_source: AwsAuthSource
-        if config.method == AwsAuthMethod.VAULT:
-            auth_source = VaultAwsAuthSource(config.profile_for_repo(name))
-        elif config.method == AwsAuthMethod.ENV:
-            auth_source = EnvironmentAwsAuthSource()
-        else:
-            raise ValueError("Invalid authentication method")
-        token = get_ca_auth_token(ca_config, auth_source)
+        token = get_ca_auth_token_for_params(ca_config, auth_params_from_config(config, name))
         yield NameAndToken(name, token)
 
 
