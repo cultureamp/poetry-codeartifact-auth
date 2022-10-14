@@ -26,7 +26,7 @@ LOG = logging.getLogger(__name__)
 _CODEARTIFACT_URL_RE = re.compile(
     r"^(?P<domain>[\w-]+)-(?P<aws_account>\d+)\.d\.codeartifact\.(?P<region>[\w-]+)\.amazonaws\.com$"
 )
-_DEFAULT_DURATION = 12 * 60 * 60
+_DEFAULT_DURATION_SECONDS = 12 * 60 * 60
 
 
 NameAndToken = namedtuple("NameAndToken", ["name", "token"])
@@ -91,7 +91,7 @@ def get_ca_auth_token_for_params(
     response = client.get_authorization_token(
         domain=repo_config.domain,
         domainOwner=repo_config.aws_account,
-        durationSeconds=(duration_seconds or _DEFAULT_DURATION),
+        durationSeconds=(duration_seconds or _DEFAULT_DURATION_SECONDS),
     )
     token = response["authorizationToken"]
     LOG.info(
@@ -179,6 +179,7 @@ class AuthConfig:
 
     method: AwsAuthMethod
     default_profile: str = ""
+    duration_seconds: int = _DEFAULT_DURATION_SECONDS
     profile_overrides: Dict[str, str] = field(default_factory=dict)
 
     def profile_for_repo(self, repo_name: str):
@@ -319,7 +320,7 @@ def main():
         "--duration-minutes",
         "-m",
         type=int,
-        default=_DEFAULT_DURATION,
+        default=_DEFAULT_DURATION_SECONDS / 60,
         help="Lifetime of token. Make this as short as practical unless it is being stored securely",
     )
     subparsers = parser.add_subparsers(dest="subcommand")
@@ -370,7 +371,9 @@ def main():
         print(pkg_resources.get_distribution("poetry-codeartifact-auth").version)
     else:
         auth_method = AwsAuthMethod(parsed.auth_method)
-        auth_config = AuthConfig(auth_method, parsed.profile_default)
+        auth_config = AuthConfig(
+            auth_method, parsed.profile_default, duration_seconds=parsed.duration_minutes * 60
+        )
         LOG.debug(f"parsed_auth_config {auth_config=}")
         if parsed.subcommand == "refresh":
             refresh_all_auth(auth_config)
