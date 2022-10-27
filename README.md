@@ -1,8 +1,6 @@
-[//]: # (**Note**: Culture Amp has built this tool for internal use but has limited capacity to support this product.)
-
-[//]: # (It is provided on an as-is basis. Bugfix PRs may get looked at, but feature development is likely to be very limited)
-
-[//]: # (and driven by internal needs.)
+**Note**: Culture Amp has built this tool for internal use but has limited capacity to support this product.
+It is provided on an as-is basis. Bugfix PRs may get looked at, but feature development is likely to be very limited
+and driven by internal needs.
 
 # Poetry CodeArtifact Auth Plugin
 
