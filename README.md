@@ -28,21 +28,62 @@ It supports AWS SSO login (via `aws-vault`) to fetch the CodeArtifact authentica
 
 3. Set up AWS authentication as described below
 
-4. To refresh your auth credentials when needed run:
+4. Refresh the CodeArtifact repo credentials for your use case
+
+### Use cases
+
+#### Building locally
+If you just want to be able to run `poetry install` on your own machine (maybe the most common case), run
+
 ```
-    poetry-ca-auth refresh
+poetry-ca-auth refresh
 ```
 
-This will trigger the authentication procedure, regardless of whether the token is expired. If you are using AWS SSO there will be a seemingly endless series of redirects but it seems to work effectively. The credentials will be saved used Poetry's credential saving mechanism which should work for any local builds on your machine. If you have other use cases (eg Docker builds), you may want to use the `show-token` or `show-auth-env-var` subcommands.
+This will trigger the authentication procedure, regardless of whether the token is expired. If you are using AWS SSO there will be a seemingly endless series of redirects but it seems to work effectively. The credentials will be saved used Poetry's credential saving mechanism which should work for any local builds on your machine. Poetry stores the credentials in a secure location (usually, possibly not on headless environments like servers).
 
-### Using `aws-vault` (recommended)
+#### Building docker containers
+
+If you have other use cases (eg Docker builds), you may want to use other subcommands, such as `write-to-dotenv`.
+
+This works most simply using `docker-compose`. `write-to-doteenv` writes the env vars to `.env` in the working directory.
+Then, if you have a `docker-compose.yaml` file such as this:
+
+```
+services:
+  yourapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - POETRY_HTTP_BASIC_<UPPERCASE_SOURCE_NAME>_PASSWORD
+        - POETRY_HTTP_BASIC_<UPPERCASE_SOURCE_NAME>_USERNAME
+```
+
+and a Dockerfile which has the following lines before `poetry install`
+
+```
+ARG POETRY_HTTP_BASIC_<UPPERCASE_SOURCE_NAME>_PASSWORD
+ARG POETRY_HTTP_BASIC_<UPPERCASE_SOURCE_NAME>_USERNAME
+```
+
+where `<UPPERCASE_SOURCE_NAME>` is created by taking the name of your Codeartifact Source, converting `-` to `_` and converting to upper case. For example At Culture Amp we use `ca-codeartifact-default` for the source name generally, so the corresponding build arg would be `POETRY_HTTP_BASIC_CA_CODEARTIFACT_DEFAULT_PASSWORD`
+
+you can simply run `docker compose build yourapp` and it will automatically pick up the values in the `.env` file, and supply them as args to the build. You can also do this with raw `docker build` but it requires more effort to get the build args to work.
+
+
+### Authentication methods
+
+#### `aws-vault` (recommended)
 
 If using `aws-vault`, ensure that you have a profile available which has permissions to fetch CodeArtifact authentication tokens. You can configure the profile using an environment variable `POETRY_CA_DEFAULT_AWS_PROFILE` (probably in your login shell profile – eg `.bashrc`) or pass to the `refresh` subcommand using the `--profile-default` argument.
 
-### Using AWS credentials from the environment
+### AWS credentials from the environment
 
 If `aws-vault` doesn't fit your needs, you can also just pull the AWS credentials from the environment. You can either set environment variable `POETRY_CA_AUTH_METHOD` to `environment` to use this method, or pass via the `--auth-method` argument.
 
+### AWS already authenticated
+
+If you are running somewhere where you are already have sufficient AWS permissions to fetch the token (eg Sagemaker studio, if that is configured), you can set `POETRY_CA_AUTH_METHOD` to `none` and it will simply fetch the token directly.
 
 ## Limitations
 
