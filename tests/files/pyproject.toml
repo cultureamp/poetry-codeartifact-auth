@@ -1,0 +1,4 @@
+[[tool.poetry.source]]
+name = "banana"
+url = "https://banana.repo.example.com/python-repo-path"
+secondary = true

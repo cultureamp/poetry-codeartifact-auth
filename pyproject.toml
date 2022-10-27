@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "poetry-codeartifact-auth"
-version = "0.1.0"
+version = "0.2.0"
 description = "Authenticates against AWS CodeArtifact"
 authors = ["andy.mackinlay <andy.mackinlay@cultureamp.com>"]
 packages = [
@@ -16,12 +16,14 @@ python = "^3.7.2"
 python-dotenv = "^0.20.0"
 boto3 = "^1.20.0"
 boto3-stubs = {extras = ["codeartifact"], version = "^1.20.0"}
+toml = "^0.10.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.3"
 mypy = "^0.981"
 pylint = "^2.15.3"
 types-setuptools = "^65.4.0"
+types-toml = "^0.10.8"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
