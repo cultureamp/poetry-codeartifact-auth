@@ -2,7 +2,7 @@
 name = "poetry-codeartifact-auth"
 version = "0.2.0"
 description = "Authenticates against AWS CodeArtifact"
-authors = ["andy.mackinlay <andy.mackinlay@cultureamp.com>"]
+authors = ["andy.mackinlay <admackin@noreply.github.com>"]
 packages = [
   { include = "poetry_codeartifact_auth.py" },
 ]
