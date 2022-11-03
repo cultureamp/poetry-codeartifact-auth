@@ -41,7 +41,7 @@ disable = [
 max-line-length = 110
 
 [tool.mypy]
-files = "comment_sentiment_models/**/*.py,entrypoints/*.py"
+files = "*.py,tests/"
 
 [[tool.mypy.overrides]]
 module = [
