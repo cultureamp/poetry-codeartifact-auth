@@ -47,7 +47,6 @@ class CodeArtifactRepoConfig:
     @staticmethod
     def from_url(repository_url: str):
         """Parse a CodeArtifact repository URL to extract relevant attributes"""
-        # https://cultureamp-python-ci-12346789012.d.codeartifact.us-west-2.amazonaws.com/pypi/cultureamp-private-python-repo/simple'
         host = urlparse(repository_url).hostname
         if not host:
             raise ValueError("Unparseable repository URL")
