@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Tools for saving a CodeArtifact authentication token locally and easily refreshing it as needed"""
+"""Tools for saving a CodeArtifact authentication token locally and easily refreshing as needed"""
 
 import argparse
 import ast
