@@ -164,7 +164,7 @@ def poetry_repositories() -> Dict[str, _PoetryRepoConfig]:
     if config_from_poetry:
         return config_from_poetry
     LOG.warning(
-        f"No repositories found in Poetry config (possibly due to poetry < 1.2."
+        f"No repositories found in Poetry config (possibly due to poetry < 1.2). "
         "Parsing pyproject.toml directly"
     )
     return _get_repo_config_from_pyproject_toml(_find_pyproject_toml_path())
@@ -279,7 +279,9 @@ def _fetch_auth_tokens(config: AuthConfig) -> Iterable[NameAndToken]:
             LOG.info(f"ignoring_apparent_non_codeartifact_repo {name=} {repo=}")
             continue
 
-        token = get_ca_auth_token_for_params(ca_config, auth_params_from_config(config, name))
+        token = get_ca_auth_token_for_params(
+            ca_config, auth_params_from_config(config, name), config.duration_seconds
+        )
         yield NameAndToken(name, token)
 
 

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "poetry-codeartifact-auth"
-version = "0.2.0"
+version = "0.2.1"
 description = "Authenticates against AWS CodeArtifact"
 authors = ["andy.mackinlay <admackin@noreply.github.com>"]
 packages = [

@@ -10,8 +10,8 @@ It supports AWS SSO login (via `aws-vault`) to fetch the CodeArtifact authentica
 
 ## Requirements
 
-* [Poetry](https://python-poetry.org) (currently 1.2 or later is needed – we may backport to 1.1 though). To use  the tool the `poetry` command must be available – it doesn't need to be installed in the same virtualenv.
-* (recommended) [aws-vault](https://github.com/99designs/aws-vault) to handle authenticating using an pre-configured   profile
+* [Poetry](https://python-poetry.org) (recommended: 1.2 or later). To use  the tool the `poetry` command must be available – it doesn't need to be installed in the same virtualenv.
+* (recommended) [aws-vault](https://github.com/99designs/aws-vault) to handle authenticating using a pre-configured   profile
 
 ## Usage
 
