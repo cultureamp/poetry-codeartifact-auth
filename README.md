@@ -43,7 +43,7 @@ This will trigger the authentication procedure, regardless of whether the token 
 
 If you have other use cases (eg Docker builds), you may want to use other subcommands, such as `write-to-dotenv`.
 
-This works most simply using `docker-compose`. `poetry-ca-auth write-to-dotenv` writes the env vars to `.env` in the working directory.
+This works most simply using `docker-compose`.  Run `poetry-ca-auth write-to-dotenv` to write the env vars to `.env` in the working directory.
 Then, if you have a `docker-compose.yaml` file such as this:
 
 ```
