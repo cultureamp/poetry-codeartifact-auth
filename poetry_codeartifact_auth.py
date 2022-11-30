@@ -164,7 +164,7 @@ def poetry_repositories() -> Dict[str, _PoetryRepoConfig]:
     if config_from_poetry:
         return config_from_poetry
     LOG.warning(
-        f"No repositories found in Poetry config (possibly due to poetry < 1.2."
+        f"No repositories found in Poetry config (possibly due to poetry < 1.2). "
         "Parsing pyproject.toml directly"
     )
     return _get_repo_config_from_pyproject_toml(_find_pyproject_toml_path())
