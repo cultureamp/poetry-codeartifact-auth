@@ -77,7 +77,7 @@ you can simply run `docker compose build yourapp` and it will automatically pick
 
 #### `aws-vault` (recommended)
 
-If using `aws-vault`, ensure that you have a profile available which has permissions to fetch CodeArtifact authentication tokens. You can configure the profile using an environment variable `POETRY_CA_DEFAULT_AWS_PROFILE` (probably in your login shell profile – eg `.bashrc`) or pass to the `refresh` subcommand using the `--profile-default` argument. More info on profile configuation for AWS vault [here](https://cultureamp.atlassian.net/wiki/spaces/SEC/pages/2744649490/AWS+SSO+Okta+-+User+Guides#Generating-a-CultureAmp-configuration-file)
+If using `aws-vault`, ensure that you have a profile available which has permissions to fetch CodeArtifact authentication tokens (e.g. assume the `CiUserRole` in the `cultureamp-continuous-integration` account). You can configure the profile using an environment variable `POETRY_CA_DEFAULT_AWS_PROFILE` (probably in your login shell profile – eg `.bashrc` or `.zshrc`) or pass to the `refresh` subcommand using the `--profile-default` argument. More info on profile configuation for AWS vault [here](https://cultureamp.atlassian.net/wiki/spaces/SEC/pages/2744649490/AWS+SSO+Okta+-+User+Guides#Generating-a-CultureAmp-configuration-file)
 e.g. usage `aws-vault --debug login $POETRY_CA_DEFAULT_AWS_PROFILE` 
 
 ### AWS credentials from the environment
