@@ -279,7 +279,9 @@ def _fetch_auth_tokens(config: AuthConfig) -> Iterable[NameAndToken]:
             LOG.info(f"ignoring_apparent_non_codeartifact_repo {name=} {repo=}")
             continue
 
-        token = get_ca_auth_token_for_params(ca_config, auth_params_from_config(config, name))
+        token = get_ca_auth_token_for_params(
+            ca_config, auth_params_from_config(config, name), config.duration_seconds
+        )
         yield NameAndToken(name, token)
 
 
