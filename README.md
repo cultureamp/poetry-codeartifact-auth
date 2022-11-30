@@ -20,7 +20,11 @@ It supports AWS SSO login (via `aws-vault`) to fetch the CodeArtifact authentica
     pip3 install git+ssh://git@github.com/cultureamp/poetry-codeartifact-auth.git
 ```
 
-(you will need [Github SSH Authentication](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) set up already. Alternatively you can probably set up HTTPS authentication use the `https` URL). See notes below about package publication status. The intent is to install this globally (but if you have global dependency conflicts you could create a custom virtual environment and set up a command alias to run in the virtual environment. This is likely not needed though).
+(you will need [Github SSH Authentication](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) set up already. Alternatively you can probably set up HTTPS authentication use the `https` URL). See notes below about package publication status. 
+
+[*For venv users*] The intent is to install this globally (but if you have global dependency conflicts you could create a custom virtual environment and set up a command alias to run in the virtual environment. This is likely not needed though). 
+
+[*For conda users*] Install in base (or any other clean) env.  Create new virtual environments off of base (or your clean env with `poetry-ca-auth` installed) by running `conda create --clone base --name my-virtual-env-name` , then activate your virtual  env `conda activate my-virtual-env-name`.  
 
 2. If not already added, add the CodeArtifact repository URL to your `pyproject.toml`. The URL will look something like `https://yourorg-python-ci-12346789012.d.codeartifact.us-west-2.amazonaws.com/pypi/some-named-private-python-repo/simple`. Follow Poetry's [instructions](https://python-poetry.org/docs/repositories/#secondary-package-sources) for adding this. The CodeArtifact `domain`, `domainOwner` (AWS account ID) and `region` are inferred from the repository URL when fetching auth credentials.
 
@@ -73,7 +77,8 @@ you can simply run `docker compose build yourapp` and it will automatically pick
 
 #### `aws-vault` (recommended)
 
-If using `aws-vault`, ensure that you have a profile available which has permissions to fetch CodeArtifact authentication tokens. You can configure the profile using an environment variable `POETRY_CA_DEFAULT_AWS_PROFILE` (probably in your login shell profile – eg `.bashrc`) or pass to the `refresh` subcommand using the `--profile-default` argument.
+If using `aws-vault`, ensure that you have a profile available which has permissions to fetch CodeArtifact authentication tokens. You can configure the profile using an environment variable `POETRY_CA_DEFAULT_AWS_PROFILE` (probably in your login shell profile – eg `.bashrc`) or pass to the `refresh` subcommand using the `--profile-default` argument. More info on profile configuation for AWS vault [here](https://cultureamp.atlassian.net/wiki/spaces/SEC/pages/2744649490/AWS+SSO+Okta+-+User+Guides#Generating-a-CultureAmp-configuration-file)
+e.g. usage `aws-vault --debug login $POETRY_CA_DEFAULT_AWS_PROFILE` 
 
 ### AWS credentials from the environment
 
