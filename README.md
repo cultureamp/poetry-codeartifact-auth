@@ -11,7 +11,8 @@ It supports AWS SSO login (via `aws-vault`) to fetch the CodeArtifact authentica
 ## Requirements
 
 * [Poetry](https://python-poetry.org) (recommended: 1.2 or later). To use  the tool the `poetry` command must be available – it doesn't need to be installed in the same virtualenv.
-* (recommended) [aws-vault](https://github.com/99designs/aws-vault) to handle authenticating using a pre-configured   profile
+* [AWS CLI](https://aws.amazon.com/cli/) – v2+ if you wish to use `sso` login method.
+* (optional; may be deprecated) [aws-vault](https://github.com/99designs/aws-vault) to handle authenticating using a pre-configured profile in a standlone session
 
 ## Usage
 
@@ -71,17 +72,23 @@ you can simply run `docker compose build yourapp` and it will automatically pick
 
 ### Authentication methods
 
-#### `aws-vault` (recommended)
+The authentication method can be passed using `--auth-method` argument or configured using the environment variable `POETRY_CA_AUTH_METHOD`.
 
-If using `aws-vault`, ensure that you have a profile available which has permissions to fetch CodeArtifact authentication tokens. You can configure the profile using an environment variable `POETRY_CA_DEFAULT_AWS_PROFILE` (probably in your login shell profile – eg `.bashrc`) or pass to the `refresh` subcommand using the `--profile-default` argument.
+#### `sso` (recommended)
+
+If you use `sso`, you need to have an AWS profile set up on your system (eg using `aws configure sso`) which has permissions to fetch CodeArtifact authentication tokens. You can select the profile to use with an environment variable `POETRY_CA_DEFAULT_AWS_PROFILE` (probably in your login shell profile – eg `.bashrc`) or pass to the `refresh` subcommand using the `--profile-default` argument.
+
+#### `aws-vault`
+
+`aws-vault` has the same requirements as `sso` in terms of pre-configured profiles you can choose.
 
 ### AWS credentials from the environment
 
-If `aws-vault` doesn't fit your needs, you can also just pull the AWS credentials from the environment. You can either set environment variable `POETRY_CA_AUTH_METHOD` to `environment` to use this method, or pass via the `--auth-method` argument.
+If `aws-vault` or `sso` don't fit your needs, you can also just pull the AWS credentials from the environment.
 
 ### AWS already authenticated
 
-If you are running somewhere where you are already have sufficient AWS permissions to fetch the token (eg Sagemaker studio, if that is configured), you can set `POETRY_CA_AUTH_METHOD` to `none` and it will simply fetch the token directly.
+If you are running somewhere where you are already have sufficient AWS permissions to fetch the token (eg Sagemaker studio, if that is configured), you use this method to fetch the token directly (in which case the library is doing less for you but is likely still handy).
 
 ## Limitations
 
