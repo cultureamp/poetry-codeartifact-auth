@@ -12,7 +12,7 @@ from dataclasses import dataclass, asdict, field
 from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import Dict, TypedDict, cast, Iterable, Union, Optional
+from typing import Dict, TypedDict, cast, Iterable, Union
 from urllib.parse import urlparse
 
 import boto3
@@ -58,6 +58,13 @@ class CodeArtifactRepoConfig:
 
 
 @dataclass(frozen=True)
+class AwsProfileParameters:
+    """Parameters which allow access to make AWS calls using only a profile name"""
+
+    profile_name: str
+
+
+@dataclass(frozen=True)
 class AwsAuthParameters:
     """Resolved authentication parameters which allow access to make AWS calls"""
 
@@ -78,19 +85,22 @@ class AwsAuthParameters:
             raise MissingAuthVarsException("One or more AWS_* auth vars was not found") from exc
 
 
+AwsLoginParameters = Union[AwsProfileParameters, AwsAuthParameters, None]
+
+
 def get_ca_auth_token_for_params(
     repo_config: CodeArtifactRepoConfig,
-    auth_params: Optional[AwsAuthParameters],
+    login_params: AwsLoginParameters,
     duration_seconds: int = None,
 ) -> str:
     """Fetch a CodeArtifact token enabling repository access"""
-    auth_args = asdict(auth_params) if auth_params else {}
+    auth_args = asdict(login_params) if login_params else {}
     boto3_session = boto3.Session(**auth_args, region_name=repo_config.region)
     client = boto3_session.client("codeartifact")
     response = client.get_authorization_token(
         domain=repo_config.domain,
         domainOwner=repo_config.aws_account,
-        durationSeconds=(duration_seconds or _DEFAULT_DURATION_SECONDS),
+        durationSeconds=int(duration_seconds or _DEFAULT_DURATION_SECONDS),
     )
     token = response["authorizationToken"]
     LOG.info(
@@ -124,6 +134,32 @@ def _aws_auth_vars_from_vault(aws_profile: str) -> Dict[str, str]:
         key: value for key, value, _, _ in env_var_bindings if key and key.startswith("AWS_")
     }
     return cast(Dict[str, str], auth_vars)
+
+
+def _ensure_sso_logged_in(aws_profile: str):
+    if not aws_profile:
+        raise ValueError("Profile must be set to use aws-vault")
+    if not _is_sso_logged_in(aws_profile):
+        LOG.info("aws_session_expired")
+        subprocess.run(
+            ["aws", "sso", "login", "--profile", aws_profile],
+            capture_output=False,
+            check=True,
+        )
+
+
+def _is_sso_logged_in(aws_profile: str) -> bool:
+    try:
+        LOG.debug(f"checking_for_existing_aws_session_with_sts profile={aws_profile!r}")
+        subprocess.run(
+            ["aws", "sts", "get-caller-identity", "--profile", aws_profile],
+            capture_output=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError:
+        return False
+    LOG.debug("existing_session_exists")
+    return True
 
 
 class _PoetryRepoConfig(TypedDict):
@@ -176,6 +212,7 @@ class AwsAuthMethod(Enum):
     NONE = "none"
     ENV = "environment"
     VAULT = "vault"
+    SSO = "sso"
 
 
 @dataclass(frozen=True)
@@ -192,17 +229,23 @@ class AuthConfig:
         return self.profile_overrides.get(repo_name, self.default_profile)
 
 
-def auth_params_from_config(config: AuthConfig, repo_name: str) -> Optional[AwsAuthParameters]:
+def auth_params_from_config(config: AuthConfig, repo_name: str) -> AwsLoginParameters:
     """Get AWS authentication parameters"""
     if config.method in (AwsAuthMethod.VAULT, AwsAuthMethod.ENV):
         if config.method == AwsAuthMethod.VAULT:
             profile = config.profile_for_repo(repo_name)
+            LOG.info(f"authenticating_using_vault profile={profile!r}")
             env_auth_vars = _aws_auth_vars_from_vault(profile)
         elif config.method == AwsAuthMethod.ENV:
             env_auth_vars = dict(os.environ)
         else:
             raise ValueError("Invalid authentication method")
         return AwsAuthParameters.from_env_auth_vars(env_auth_vars)
+    if config.method == AwsAuthMethod.SSO:
+        profile = config.profile_for_repo(repo_name)
+        LOG.info(f"authenticating_using_sso profile={profile!r}")
+        _ensure_sso_logged_in(profile)
+        return AwsProfileParameters(config.profile_for_repo(repo_name))
     if config.method == AwsAuthMethod.NONE:
         return None
     raise ValueError("Invalid authentication method")
@@ -308,9 +351,10 @@ def main():
         "--auth-method",
         "-a",
         type=str,
-        default=os.getenv("POETRY_CA_AUTH_METHOD", "vault"),
+        default=os.getenv("POETRY_CA_AUTH_METHOD", "sso"),
         choices=[v.value for v in AwsAuthMethod],
-        help="Authentication method. Use `vault` (recommended) to authenticate using AWS vault. "
+        help="Authentication method. Use `sso` (recommended) to authenticate using `aws sso` command ."
+        "(requires CLI v2 – `vault`, which uses aws-vault, still works with v1) "
         "With `environment`, AWS authentication variables must be present in the environment."
         "Defaults to value in `POETRY_CA_AUTH_METHOD` environment variable.",
     )
