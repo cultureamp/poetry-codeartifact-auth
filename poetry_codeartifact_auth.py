@@ -374,7 +374,7 @@ def main():
         default=_DEFAULT_DURATION_SECONDS / 60,
         help="Lifetime of token. Make this as short as practical unless it is being stored securely",
     )
-    subparsers = parser.add_subparsers(dest="subcommand")
+    subparsers = parser.add_subparsers(dest="subcommand", required=True)
 
     subparsers.add_parser(
         "refresh", help="refresh CodeArtifact authentication token in Poetry config"
@@ -436,6 +436,8 @@ def main():
             write_auth_to_dotenv(
                 auth_config, parsed.file, create=parsed.create, export=parsed.export
             )
+        else:
+            raise ValueError("You must specify a valid subcommand")
 
 
 if __name__ == "__main__":
