@@ -1,5 +1,7 @@
 # pylint:disable=missing-docstring
+import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -9,6 +11,7 @@ from poetry_codeartifact_auth import (
     CodeArtifactUrlParseException,
     _find_pyproject_toml_path,
     _get_repo_config_from_pyproject_toml,
+    main,
 )
 
 
@@ -56,3 +59,15 @@ class TestCodeArtifactRepoConfig:
 def test_parse_poetry_repo_config():
     config_output = "{'example': {'url': 'https://repo.example.com'}}"
     assert parse_poetry_repo_config(config_output)["example"]["url"] == "https://repo.example.com"
+
+
+def test__cli_fails_without_subcommand():
+    with patch.object(sys, "argv", ["poetry-ca-auth"]):
+        with pytest.raises(SystemExit):
+            main()
+
+
+def test__cli_fails_with_invalid_subcommand():
+    with patch.object(sys, "argv", ["poetry-ca-auth", "banana"]):
+        with pytest.raises(SystemExit):
+            main()
