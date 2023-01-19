@@ -56,7 +56,8 @@ files = "*.py,tests/"
 [[tool.mypy.overrides]]
 module = [
   "boto3",
-  "poetry.*"
+  "poetry.*",
+  "cleo.*"
 ]
 
 ignore_missing_imports = true
