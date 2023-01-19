@@ -18,13 +18,14 @@ class CAAuthPlugin(ApplicationPlugin):
     """
 
     def activate(self, application: Application) -> None:
+        """Activate the plugin and create hooks for installation events"""
         application.event_dispatcher.add_listener(COMMAND, self.refresh_auth)
 
     # pylint:disable=unused-argument
     def refresh_auth(
         self, event: ConsoleCommandEvent, event_name: str, dispatcher: EventDispatcher
     ) -> None:
-        """Refresh the authentication token"""
+        """Refresh the authentication token if it is an install-type event"""
         command = event.command
         if not isinstance(command, InstallerCommand):
             return
