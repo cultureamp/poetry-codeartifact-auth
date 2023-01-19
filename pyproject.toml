@@ -1,10 +1,11 @@
 [tool.poetry]
 name = "poetry-codeartifact-auth"
-version = "0.3.0"
+version = "0.4.0"
 description = "Authenticates against AWS CodeArtifact"
 authors = ["andy.mackinlay <admackin@noreply.github.com>"]
 packages = [
   { include = "poetry_codeartifact_auth.py" },
+  { include = "poetry_codeartifact_auth_plugin.py" },
 ]
 license = "MIT"
 
@@ -24,6 +25,15 @@ mypy = "^0.981"
 pylint = "^2.15.3"
 types-setuptools = "^65.4.0"
 types-toml = "^0.10.8"
+
+[tool.poetry.plugins."poetry.application.plugin"]
+ca-auth = "poetry_codeartifact_auth_plugin:CAAuthPlugin"
+
+[tool.poetry.group.plugin]
+optional = true
+
+[tool.poetry.group.plugin.dependencies]
+poetry = "^1.3.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -46,7 +56,10 @@ files = "*.py,tests/"
 [[tool.mypy.overrides]]
 module = [
   "boto3",
+  "poetry.*"
 ]
+
+ignore_missing_imports = true
 
 
 [tool.pytest.ini_options]
