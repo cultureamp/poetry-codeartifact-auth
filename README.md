@@ -26,7 +26,7 @@ It supports AWS SSO login (via `aws-vault`) to fetch the CodeArtifact authentica
 2. (recommended) also, or instead, add as a Poetry plugin to make the authentication token refresh automatically (only provides an equivalent to the `poetry-ca-auth refresh` subcommand at this time)
 
 ```
-   poetry self add git+https://github.com/cultureamp/poetry-codeartifact-auth.git -E plugin
+   poetry self add git+https://github.com/cultureamp/poetry-codeartifact-auth.git#main -E plugin
 ```
 
 3. If not already added, add the CodeArtifact repository URL to your `pyproject.toml`. The URL will look something like `https://yourorg-python-ci-12346789012.d.codeartifact.us-west-2.amazonaws.com/pypi/some-named-private-python-repo/simple`. Follow Poetry's [instructions](https://python-poetry.org/docs/repositories/#secondary-package-sources) for adding this. The CodeArtifact `domain`, `domainOwner` (AWS account ID) and `region` are inferred from the repository URL when fetching auth credentials.
