@@ -140,7 +140,7 @@ def _ensure_sso_logged_in(aws_profile: str):
     if not aws_profile:
         raise ValueError("Profile must be set to use aws-vault")
     if not _is_sso_logged_in(aws_profile):
-        LOG.info("aws_session_expired")
+        LOG.info(f"aws_session_expired_new_login {aws_profile=}")
         subprocess.run(
             ["aws", "sso", "login", "--profile", aws_profile],
             capture_output=False,
@@ -229,6 +229,13 @@ class AuthConfig:
         return self.profile_overrides.get(repo_name, self.default_profile)
 
 
+def auth_config_from_env() -> AuthConfig:
+    """Determine AuthConfig from the environment"""
+    return AuthConfig(
+        method=AwsAuthMethod(_auth_method_from_env()), default_profile=_aws_profile_from_env()
+    )
+
+
 def auth_params_from_config(config: AuthConfig, repo_name: str) -> AwsLoginParameters:
     """Get AWS authentication parameters"""
     if config.method in (AwsAuthMethod.VAULT, AwsAuthMethod.ENV):
@@ -307,10 +314,14 @@ def write_auth_to_dotenv(
     LOG.info(f"wrote_env_vars {env_path=}")
 
 
+class NoCodeArtifactRepositoriesError(ValueError):
+    """No Codeartifact repositories configured in pyproject.toml in current directory"""
+
+
 def _fetch_auth_tokens(config: AuthConfig) -> Iterable[NameAndToken]:
     repositories = poetry_repositories()
     if not repositories:
-        raise ValueError(
+        raise NoCodeArtifactRepositoriesError(
             "No repositories found. Make sure a valid pyproject.toml which defines "
             "extra sources is available in a current or parent directory"
         )
@@ -351,7 +362,7 @@ def main():
         "--auth-method",
         "-a",
         type=str,
-        default=os.getenv("POETRY_CA_AUTH_METHOD", "sso"),
+        default=_auth_method_from_env(),
         choices=[v.value for v in AwsAuthMethod],
         help="Authentication method. Use `sso` (recommended) to authenticate using `aws sso` command ."
         "(requires CLI v2 – `vault`, which uses aws-vault, still works with v1) "
@@ -362,8 +373,8 @@ def main():
         "--profile-default",
         "-p",
         type=str,
-        default=os.getenv("POETRY_CA_DEFAULT_AWS_PROFILE", ""),
-        help="aws-vault profile to us if auth method is 'vault'."
+        default=_aws_profile_from_env(),
+        help="aws-vault/SSO profile to us if auth method is 'vault'."
         "Defaults to value in `POETRY_CA_DEFAULT_AWS_PROFILE` environment variable.",
     )
 
@@ -438,6 +449,14 @@ def main():
             )
         else:
             raise ValueError("You must specify a valid subcommand")
+
+
+def _aws_profile_from_env() -> str:
+    return os.getenv("POETRY_CA_DEFAULT_AWS_PROFILE", "")
+
+
+def _auth_method_from_env() -> str:
+    return os.getenv("POETRY_CA_AUTH_METHOD", "sso")
 
 
 if __name__ == "__main__":
