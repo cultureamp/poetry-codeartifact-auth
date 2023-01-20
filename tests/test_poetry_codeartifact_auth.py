@@ -1,4 +1,5 @@
 # pylint:disable=missing-docstring
+import os
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -12,6 +13,9 @@ from poetry_codeartifact_auth import (
     _find_pyproject_toml_path,
     _get_repo_config_from_pyproject_toml,
     main,
+    CodeArtifactAuthConfigException,
+    AuthConfig,
+    AwsAuthMethod,
 )
 
 
@@ -71,3 +75,31 @@ def test__cli_fails_with_invalid_subcommand():
     with patch.object(sys, "argv", ["poetry-ca-auth", "banana"]):
         with pytest.raises(SystemExit):
             main()
+
+
+class TestAuthConfig:
+    @staticmethod
+    def test__succeed_if_profile_provided_and_method_needs_it():
+        AuthConfig(AwsAuthMethod.SSO, default_profile="something")
+        AuthConfig(AwsAuthMethod.VAULT, default_profile="something")
+
+    @staticmethod
+    def test__fails_with_missing_profile_if_auth_method_needs_it():
+        with pytest.raises(CodeArtifactAuthConfigException):
+            AuthConfig(AwsAuthMethod.SSO)
+        with pytest.raises(CodeArtifactAuthConfigException):
+            AuthConfig(AwsAuthMethod.VAULT)
+
+    @staticmethod
+    def test__fails_due_to_missing_env_vars_if_auth_method_needs_it():
+        with pytest.raises(CodeArtifactAuthConfigException):
+            AuthConfig(AwsAuthMethod.ENV)
+
+    @staticmethod
+    def test__succeed_if_auth_env_vars_provided():
+        with patch.object(
+            os,
+            "environ",
+            {"AWS_ACCESS_KEY_ID": "a", "AWS_SECRET_ACCESS_KEY": "b", "AWS_SESSION_TOKEN": "c"},
+        ):
+            AuthConfig(AwsAuthMethod.ENV)
