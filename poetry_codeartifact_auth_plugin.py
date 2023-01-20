@@ -7,7 +7,12 @@ from poetry.console.application import Application
 from poetry.console.commands.installer_command import InstallerCommand
 from poetry.plugins.application_plugin import ApplicationPlugin
 
-from poetry_codeartifact_auth import poetry_repositories, auth_config_from_env, refresh_all_auth
+from poetry_codeartifact_auth import (
+    poetry_repositories,
+    auth_config_from_env,
+    refresh_all_auth,
+    CodeArtifactAuthConfigException,
+)
 
 
 class CAAuthPlugin(ApplicationPlugin):
@@ -36,11 +41,13 @@ class CAAuthPlugin(ApplicationPlugin):
             )
             return
 
-        auth_config = auth_config_from_env()
-        if not auth_config.default_profile:
+        try:
+            auth_config = auth_config_from_env()
+        except CodeArtifactAuthConfigException as exc:
             event.io.write_error(
-                "AWS profile must be configured using `POETRY_CA_DEFAULT_AWS_PROFILE` environment variable. "
-                "Plugin will not function"
+                f"{exc!r}. AWS profile must be configured using `POETRY_CA_DEFAULT_AWS_PROFILE` or "
+                f"`POETRY_CA_AUTH_METHOD` env var must be set to `none` or `environment`. "
+                f"CodeArtifact auth plugin will not function"
             )
             return
         refresh_all_auth(auth_config)

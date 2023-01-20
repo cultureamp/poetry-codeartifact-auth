@@ -215,6 +215,10 @@ class AwsAuthMethod(Enum):
     SSO = "sso"
 
 
+class CodeArtifactAuthConfigException(ValueError):
+    """The authentication configuration is invalid"""
+
+
 @dataclass(frozen=True)
 class AuthConfig:
     """Configuration for authenticating against AWS"""
@@ -223,6 +227,20 @@ class AuthConfig:
     default_profile: str = ""
     duration_seconds: int = _DEFAULT_DURATION_SECONDS
     profile_overrides: Dict[str, str] = field(default_factory=dict)
+
+    def __post_init__(self):
+        if self.method in (AwsAuthMethod.VAULT, AwsAuthMethod.SSO):
+            if not self.default_profile:
+                raise CodeArtifactAuthConfigException(
+                    f"AWS default profile must be set for authentication method {self.method}"
+                )
+        elif self.method == AwsAuthMethod.ENV:
+            try:
+                AwsAuthParameters.from_env_auth_vars(dict(os.environ))
+            except MissingAuthVarsException as exc:
+                raise CodeArtifactAuthConfigException(
+                    "AWS_* authentication vars must be set"
+                ) from exc
 
     def profile_for_repo(self, repo_name: str):
         """Get the profile for the provided repository name"""
