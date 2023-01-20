@@ -18,15 +18,18 @@ It supports AWS SSO login (via `aws-vault`) to fetch the CodeArtifact authentica
 
 1. Install core package somewhere on your system using
 
+```
     pip3 install git+https://github.com/cultureamp/poetry-codeartifact-auth.git
-
-See notes below about package publication status. The intent is to install this globally (but if you have global dependency conflicts you could create a custom virtual environment and set up a command alias to run in the virtual environment. This is likely not needed though).
+```
+  See notes below about package publication status. The intent is to install this globally (but if you have global dependency conflicts you could create a custom virtual environment and set up a command alias to run in the virtual environment. This is likely not needed though).
 
 2. (recommended) also, or instead, add as a Poetry plugin to make the authentication token refresh automatically (only provides an equivalent to the `poetry-ca-auth refresh` subcommand at this time)
 
+```
    poetry self add git+https://github.com/cultureamp/poetry-codeartifact-auth.git -E plugin
+```
 
-2. If not already added, add the CodeArtifact repository URL to your `pyproject.toml`. The URL will look something like `https://yourorg-python-ci-12346789012.d.codeartifact.us-west-2.amazonaws.com/pypi/some-named-private-python-repo/simple`. Follow Poetry's [instructions](https://python-poetry.org/docs/repositories/#secondary-package-sources) for adding this. The CodeArtifact `domain`, `domainOwner` (AWS account ID) and `region` are inferred from the repository URL when fetching auth credentials.
+3. If not already added, add the CodeArtifact repository URL to your `pyproject.toml`. The URL will look something like `https://yourorg-python-ci-12346789012.d.codeartifact.us-west-2.amazonaws.com/pypi/some-named-private-python-repo/simple`. Follow Poetry's [instructions](https://python-poetry.org/docs/repositories/#secondary-package-sources) for adding this. The CodeArtifact `domain`, `domainOwner` (AWS account ID) and `region` are inferred from the repository URL when fetching auth credentials.
 
 3. Set up AWS authentication as described below
 
@@ -78,23 +81,23 @@ you can simply run `docker compose build yourapp` and it will automatically pick
 
 ### Authentication methods
 
-The authentication method can be passed using `--auth-method` argument or configured using the environment variable `POETRY_CA_AUTH_METHOD`.
+The authentication method can be passed using `--auth-method` argument or configured using the environment variable `POETRY_CA_AUTH_METHOD`. The environment variable is the only option when running as a plugin.
 
 #### `sso` (recommended)
 
 If you use `sso`, you need to have an AWS profile set up on your system (eg using `aws configure sso`) which has permissions to fetch CodeArtifact authentication tokens. You can select the profile to use with an environment variable `POETRY_CA_DEFAULT_AWS_PROFILE` (probably in your login shell profile – eg `.bashrc`) or pass to the `refresh` subcommand using the `--profile-default` argument.
 
-#### `aws-vault`
+#### `vault`
 
-`aws-vault` has the same requirements as `sso` in terms of pre-configured profiles you can choose.
+Uses `aws-vault` command. Has the same requirements as `sso` in terms of pre-configured profiles you can choose.
 
-### AWS credentials from the environment
+### `environment`
 
-If `aws-vault` or `sso` don't fit your needs, you can also just pull the AWS credentials from the environment.
+Pulls AWS credentials from the environment before fetching the CodeArtifact token.
 
-### AWS already authenticated
+### `none`
 
-If you are running somewhere where you are already have sufficient AWS permissions to fetch the token (eg Sagemaker studio, if that is configured), you use this method to fetch the token directly (in which case the library is doing less for you but is likely still handy).
+If you already have AWS authentication due to, for example, a role you have (eg in Sagemaker Studio), you may be able to fetch the token without any extra work, you use this method to fetch the token directly (in which case the library is doing less for you but is likely still handy).
 
 ## Limitations
 
