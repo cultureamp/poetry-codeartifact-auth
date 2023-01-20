@@ -18,15 +18,18 @@ It supports AWS SSO login (via `aws-vault`) to fetch the CodeArtifact authentica
 
 1. Install core package somewhere on your system using
 
+```
     pip3 install git+https://github.com/cultureamp/poetry-codeartifact-auth.git
-
-See notes below about package publication status. The intent is to install this globally (but if you have global dependency conflicts you could create a custom virtual environment and set up a command alias to run in the virtual environment. This is likely not needed though).
+```
+  See notes below about package publication status. The intent is to install this globally (but if you have global dependency conflicts you could create a custom virtual environment and set up a command alias to run in the virtual environment. This is likely not needed though).
 
 2. (recommended) also, or instead, add as a Poetry plugin to make the authentication token refresh automatically (only provides an equivalent to the `poetry-ca-auth refresh` subcommand at this time)
 
+```
    poetry self add git+https://github.com/cultureamp/poetry-codeartifact-auth.git -E plugin
+```
 
-2. If not already added, add the CodeArtifact repository URL to your `pyproject.toml`. The URL will look something like `https://yourorg-python-ci-12346789012.d.codeartifact.us-west-2.amazonaws.com/pypi/some-named-private-python-repo/simple`. Follow Poetry's [instructions](https://python-poetry.org/docs/repositories/#secondary-package-sources) for adding this. The CodeArtifact `domain`, `domainOwner` (AWS account ID) and `region` are inferred from the repository URL when fetching auth credentials.
+3. If not already added, add the CodeArtifact repository URL to your `pyproject.toml`. The URL will look something like `https://yourorg-python-ci-12346789012.d.codeartifact.us-west-2.amazonaws.com/pypi/some-named-private-python-repo/simple`. Follow Poetry's [instructions](https://python-poetry.org/docs/repositories/#secondary-package-sources) for adding this. The CodeArtifact `domain`, `domainOwner` (AWS account ID) and `region` are inferred from the repository URL when fetching auth credentials.
 
 3. Set up AWS authentication as described below
 
