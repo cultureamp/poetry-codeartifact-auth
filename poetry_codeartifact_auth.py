@@ -238,7 +238,9 @@ class AuthConfig:
             try:
                 AwsAuthParameters.from_env_auth_vars(dict(os.environ))
             except MissingAuthVarsException as exc:
-                raise CodeArtifactAuthConfigException() from exc
+                raise CodeArtifactAuthConfigException(
+                    "AWS_* authentication vars must be set"
+                ) from exc
 
     def profile_for_repo(self, repo_name: str):
         """Get the profile for the provided repository name"""
