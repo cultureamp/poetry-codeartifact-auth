@@ -12,7 +12,8 @@ from dataclasses import dataclass, asdict, field
 from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import Dict, TypedDict, cast, Iterable, Union
+from typing import Dict, TypedDict, cast, Iterable, Union, List
+from urllib import parse
 from urllib.parse import urlparse
 
 import boto3
@@ -364,6 +365,21 @@ def refresh_all_auth(config: AuthConfig):
         _refresh_single_repo_auth(name, token)
 
 
+def _url_with_auth(repository: str, token: str):
+    parsed = parse.urlparse(repository)
+    return f"{parsed.scheme}://aws:{parse.quote(token, '')}@{parsed.netloc}{parsed.path}"
+
+
+def run_pip_install_with_auth(config: AuthConfig, repository: str, pip_args: List[str]):
+    """Runs pip install with authentication"""
+    ca_config = CodeArtifactRepoConfig.from_url(repository)
+    token = get_ca_auth_token_for_params(ca_config, auth_params_from_config(config, ""), 3600)
+    subprocess.run(
+        ["pip", "install", "--extra-index-url", _url_with_auth(repository, token), *pip_args],
+        check=True,
+    )
+
+
 def main():
     """Main command line function"""
     parser = argparse.ArgumentParser()
@@ -438,6 +454,19 @@ def main():
         help="create dotenv file if it does not already exist",
     )
 
+    pip_run = subparsers.add_parser(
+        "pip-install",
+        help="run pip with a codeartifact repository added along with auth credentials",
+    )
+    pip_run.add_argument(
+        "-r",
+        "--repository",
+        default=os.getenv("POETRY_CA_PIP_DEFAULT_CODEARTIFACT_REPO", ""),
+        help="repository URL to use. Defaults to value stored in POETRY_CA_PIP_DEFAULT_CODEARTIFACT_REPO"
+        " env var. The token expiry is set to one hour for this command",
+    )
+    pip_run.add_argument("pip_args", nargs="+", help="Arguments for pip")
+
     parsed = parser.parse_args()
 
     if parsed.verbosity >= 2:
@@ -465,6 +494,8 @@ def main():
             write_auth_to_dotenv(
                 auth_config, parsed.file, create=parsed.create, export=parsed.export
             )
+        elif parsed.subcommand == "pip-install":
+            run_pip_install_with_auth(auth_config, parsed.repository, parsed.pip_args)
         else:
             raise ValueError("You must specify a valid subcommand")
 

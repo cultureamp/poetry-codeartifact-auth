@@ -8,6 +8,8 @@ Do you use [CodeArtifact](https://aws.amazon.com/codeartifact/) to store private
 
 It supports AWS SSO login (via `aws-vault`) to fetch the CodeArtifact authentication token. The token is saved to your machine (but note that it will only last for a limited time). It can be installed as a Poetry plugin as well, so that authentication is triggered automatically for Poetry operations which are likely to need it (for codebases which use private CodeArtifact repositories).
 
+It can also be used to automatically fetch authentication tokens to run `pip install`.
+
 ## Requirements
 
 * [Poetry](https://python-poetry.org) (recommended: 1.2 or later). To use  the tool the `poetry` command must be available – it doesn't need to be installed in the same virtualenv.
@@ -23,7 +25,7 @@ It supports AWS SSO login (via `aws-vault`) to fetch the CodeArtifact authentica
 ```
   See notes below about package publication status. The intent is to install this globally (but if you have global dependency conflicts you could create a custom virtual environment and set up a command alias to run in the virtual environment. This is likely not needed though).
 
-2. (recommended) also, or instead, add as a Poetry plugin to make the authentication token refresh automatically (only provides an equivalent to the `poetry-ca-auth refresh` subcommand at this time)
+2. (recommended) also, or instead, add as a Poetry plugin to make the authentication token refresh automatically (only provides an equivalent to the `poetry-ca-auth refresh` subcommand at this time). This will not help if you are using `pip` only.
 
 ```
    poetry self add git+https://github.com/cultureamp/poetry-codeartifact-auth.git#main -E plugin
@@ -37,7 +39,7 @@ It supports AWS SSO login (via `aws-vault`) to fetch the CodeArtifact authentica
 
 ### Use cases
 
-#### Building locally
+#### Installing apps locally
 
 If you have installed as a Poetry plugin, then as long as you have configured your system as specified above, you should be able to use the normal Poetry commands, and those which interact with package repositories will automatically authenticate against CodeArtifact as needed.
 
@@ -48,6 +50,14 @@ poetry-ca-auth refresh
 ```
 
 This will trigger the authentication procedure, regardless of whether the token is expired. If you are using AWS SSO there will be a seemingly endless series of redirects but it seems to work effectively. The credentials will be saved used Poetry's credential saving mechanism which should work for any local builds on your machine. Poetry stores the credentials in a secure location (usually, possibly not on headless environments like servers).
+
+If you want to use `pip` instead to install more private dependencies in an adhoc fashion, you can do so using
+
+```
+poetry-ca-auth pip-install
+```
+
+Arguments will be passed through to `pip install` but it will automatically populate `--extra-index-url` with a URL with authentication tokens included. You will need to pass the CodeArtifact repository URL in, either with `--repository` or by setting the `POETRY_CA_PIP_DEFAULT_CODEARTIFACT_REPO` environment variable.
 
 #### Building docker containers
 
