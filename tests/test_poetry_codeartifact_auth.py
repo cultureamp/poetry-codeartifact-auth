@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
+import poetry_codeartifact_auth
 from poetry_codeartifact_auth import (
     CodeArtifactRepoConfig,
     parse_poetry_repo_config,
@@ -83,6 +84,33 @@ def test__cli_fails_with_invalid_subcommand():
     with patch.object(sys, "argv", ["poetry-ca-auth", "banana"]):
         with pytest.raises(SystemExit):
             main()
+
+
+def test__cli_fails_with_invalid_parameter_if_not_pip_install():
+    with patch.object(sys, "argv", ["poetry-ca-auth", "refresh", "--banana"]):
+        with pytest.raises(SystemExit):
+            main()
+
+
+def test__cli_passes_extra_args_to_pip_install_correctly():
+    with patch.object(
+        os,
+        "environ",
+        {
+            "POETRY_CA_AUTH_METHOD": "none",
+            "POETRY_CA_PIP_DEFAULT_CODEARTIFACT_REPO": "https://example.com/codeartifact",
+        },
+    ):
+        with patch.object(sys, "argv", ["poetry-ca-auth", "pip-install", "--user", "foo"]):
+            with patch.object(
+                poetry_codeartifact_auth, "run_pip_install_with_auth"
+            ) as pip_install_method:
+                main()
+                pip_install_method.assert_called_with(
+                    AuthConfig(AwsAuthMethod.NONE),
+                    "https://example.com/codeartifact",
+                    ["--user", "foo"],
+                )
 
 
 class TestAuthConfig:
