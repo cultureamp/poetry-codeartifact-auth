@@ -419,7 +419,7 @@ def main():
         default=_DEFAULT_DURATION_SECONDS / 60,
         help="Lifetime of token. Make this as short as practical unless it is being stored securely",
     )
-    subparsers = parser.add_subparsers(dest="subcommand", required=True)
+    subparsers = parser.add_subparsers(dest="subcommand", required=False)
 
     subparsers.add_parser(
         "refresh", help="refresh CodeArtifact authentication token in Poetry config"
