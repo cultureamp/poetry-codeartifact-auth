@@ -478,26 +478,24 @@ def main():
 
     if parsed.version:
         print(pkg_resources.get_distribution("poetry-codeartifact-auth").version)
+        return
+    auth_method = AwsAuthMethod(parsed.auth_method)
+    auth_config = AuthConfig(
+        auth_method, parsed.profile_default, duration_seconds=parsed.duration_minutes * 60
+    )
+    LOG.debug(f"parsed_auth_config {auth_config=}")
+    if parsed.subcommand == "refresh":
+        refresh_all_auth(auth_config)
+    elif parsed.subcommand == "show-token":
+        show_auth_token(auth_config)
+    elif parsed.subcommand == "show-auth-env-vars":
+        show_auth_env_vars(auth_config)
+    elif parsed.subcommand == "write-to-dotenv":
+        write_auth_to_dotenv(auth_config, parsed.file, create=parsed.create, export=parsed.export)
+    elif parsed.subcommand == "pip-install":
+        run_pip_install_with_auth(auth_config, parsed.repository, parsed.pip_args)
     else:
-        auth_method = AwsAuthMethod(parsed.auth_method)
-        auth_config = AuthConfig(
-            auth_method, parsed.profile_default, duration_seconds=parsed.duration_minutes * 60
-        )
-        LOG.debug(f"parsed_auth_config {auth_config=}")
-        if parsed.subcommand == "refresh":
-            refresh_all_auth(auth_config)
-        elif parsed.subcommand == "show-token":
-            show_auth_token(auth_config)
-        elif parsed.subcommand == "show-auth-env-vars":
-            show_auth_env_vars(auth_config)
-        elif parsed.subcommand == "write-to-dotenv":
-            write_auth_to_dotenv(
-                auth_config, parsed.file, create=parsed.create, export=parsed.export
-            )
-        elif parsed.subcommand == "pip-install":
-            run_pip_install_with_auth(auth_config, parsed.repository, parsed.pip_args)
-        else:
-            raise ValueError("You must specify a valid subcommand")
+        raise ValueError("You must specify a valid subcommand")
 
 
 def _aws_profile_from_env() -> str:
