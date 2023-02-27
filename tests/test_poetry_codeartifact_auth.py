@@ -16,6 +16,7 @@ from poetry_codeartifact_auth import (
     CodeArtifactAuthConfigException,
     AuthConfig,
     AwsAuthMethod,
+    _url_with_auth,
 )
 
 
@@ -35,6 +36,13 @@ def test__get_repo_config_from_pyproject_toml():
     toml_path = Path(__file__).parent / "files" / "pyproject.toml"
     expected_url = "https://banana.repo.example.com/python-repo-path"
     assert _get_repo_config_from_pyproject_toml(toml_path)["banana"]["url"] == expected_url
+
+
+def test__url_with_auth():
+    assert (
+        _url_with_auth("https://example.com/foo", "a password")
+        == "https://aws:a%20password@example.com/foo"
+    )
 
 
 class TestCodeArtifactRepoConfig:
