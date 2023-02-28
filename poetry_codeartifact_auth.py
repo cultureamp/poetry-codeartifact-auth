@@ -485,20 +485,24 @@ def main():
         parser.error(f"Unknown arguments: {extras}")
 
     auth_method = AwsAuthMethod(parsed.auth_method)
-    auth_config = AuthConfig(
-        auth_method, parsed.profile_default, duration_seconds=int(parsed.duration_minutes * 60)
-    )
-    LOG.debug(f"parsed_auth_config {auth_config=}")
+
+    def auth_config():
+        authconf = AuthConfig(
+            auth_method, parsed.profile_default, duration_seconds=int(parsed.duration_minutes * 60)
+        )
+        LOG.debug(f"parsed_auth_config {authconf=}")
+        return authconf
+
     if parsed.subcommand == "refresh":
-        refresh_all_auth(auth_config)
+        refresh_all_auth(auth_config())
     elif parsed.subcommand == "show-token":
-        show_auth_token(auth_config)
+        show_auth_token(auth_config())
     elif parsed.subcommand == "show-auth-env-vars":
-        show_auth_env_vars(auth_config)
+        show_auth_env_vars(auth_config())
     elif parsed.subcommand == "write-to-dotenv":
-        write_auth_to_dotenv(auth_config, parsed.file, create=parsed.create, export=parsed.export)
+        write_auth_to_dotenv(auth_config(), parsed.file, create=parsed.create, export=parsed.export)
     elif parsed.subcommand == "pip-install":
-        run_pip_install_with_auth(auth_config, parsed.repository, [*extras, *parsed.pip_args])
+        run_pip_install_with_auth(auth_config(), parsed.repository, [*extras, *parsed.pip_args])
     else:
         parser.error("You must specify a valid subcommand")
 
