@@ -419,7 +419,7 @@ def main():
         default=_DEFAULT_DURATION_SECONDS / 60,
         help="Lifetime of token. Make this as short as practical unless it is being stored securely",
     )
-    subparsers = parser.add_subparsers(dest="subcommand", required=True)
+    subparsers = parser.add_subparsers(dest="subcommand", required=False)
 
     subparsers.add_parser(
         "refresh", help="refresh CodeArtifact authentication token in Poetry config"
@@ -456,7 +456,8 @@ def main():
 
     pip_run = subparsers.add_parser(
         "pip-install",
-        help="run pip with a codeartifact repository added along with auth credentials",
+        help="run pip with a codeartifact repository added along with auth credentials. Extra arguments "
+        "are passed to `pip install`",
     )
     pip_run.add_argument(
         "-r",
@@ -467,7 +468,7 @@ def main():
     )
     pip_run.add_argument("pip_args", nargs="+", help="Arguments for pip")
 
-    parsed = parser.parse_args()
+    parsed, extras = parser.parse_known_args()
 
     if parsed.verbosity >= 2:
         logging.basicConfig(level=logging.DEBUG)
@@ -478,26 +479,32 @@ def main():
 
     if parsed.version:
         print(pkg_resources.get_distribution("poetry-codeartifact-auth").version)
-    else:
-        auth_method = AwsAuthMethod(parsed.auth_method)
-        auth_config = AuthConfig(
-            auth_method, parsed.profile_default, duration_seconds=parsed.duration_minutes * 60
+        return
+
+    if extras and parsed.subcommand != "pip-install":
+        parser.error(f"Unknown arguments: {extras}")
+
+    auth_method = AwsAuthMethod(parsed.auth_method)
+
+    def auth_config():
+        authconf = AuthConfig(
+            auth_method, parsed.profile_default, duration_seconds=int(parsed.duration_minutes * 60)
         )
-        LOG.debug(f"parsed_auth_config {auth_config=}")
-        if parsed.subcommand == "refresh":
-            refresh_all_auth(auth_config)
-        elif parsed.subcommand == "show-token":
-            show_auth_token(auth_config)
-        elif parsed.subcommand == "show-auth-env-vars":
-            show_auth_env_vars(auth_config)
-        elif parsed.subcommand == "write-to-dotenv":
-            write_auth_to_dotenv(
-                auth_config, parsed.file, create=parsed.create, export=parsed.export
-            )
-        elif parsed.subcommand == "pip-install":
-            run_pip_install_with_auth(auth_config, parsed.repository, parsed.pip_args)
-        else:
-            raise ValueError("You must specify a valid subcommand")
+        LOG.debug(f"parsed_auth_config {authconf=}")
+        return authconf
+
+    if parsed.subcommand == "refresh":
+        refresh_all_auth(auth_config())
+    elif parsed.subcommand == "show-token":
+        show_auth_token(auth_config())
+    elif parsed.subcommand == "show-auth-env-vars":
+        show_auth_env_vars(auth_config())
+    elif parsed.subcommand == "write-to-dotenv":
+        write_auth_to_dotenv(auth_config(), parsed.file, create=parsed.create, export=parsed.export)
+    elif parsed.subcommand == "pip-install":
+        run_pip_install_with_auth(auth_config(), parsed.repository, [*extras, *parsed.pip_args])
+    else:
+        parser.error("You must specify a valid subcommand")
 
 
 def _aws_profile_from_env() -> str:
