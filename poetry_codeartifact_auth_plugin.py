@@ -5,6 +5,7 @@ from cleo.events.console_events import COMMAND
 from cleo.events.event_dispatcher import EventDispatcher
 from poetry.console.application import Application
 from poetry.console.commands.installer_command import InstallerCommand
+from poetry.console.commands.self.self_command import SelfCommand
 from poetry.plugins.application_plugin import ApplicationPlugin
 
 from poetry_codeartifact_auth import (
@@ -33,6 +34,10 @@ class CAAuthPlugin(ApplicationPlugin):
         """Refresh the authentication token if it is an install-type event"""
         command = event.command
         if not isinstance(command, InstallerCommand):
+            return
+        if isinstance(command, SelfCommand):
+            # self commands should work w/o TOML file and don't need this unless you want
+            # to install private plugins
             return
         if not poetry_repositories():
             event.io.write_line(

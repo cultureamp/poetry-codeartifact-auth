@@ -174,13 +174,20 @@ def parse_poetry_repo_config(poetry_output: str) -> Dict[str, _PoetryRepoConfig]
 
 def _find_pyproject_toml_path(cwd: str = None):
     fs_path = Path(cwd or os.getcwd())
+    root = Path(fs_path.root)
 
     def toml_path():
         return fs_path / "pyproject.toml"
 
+    count = 0
+
     while not toml_path().exists():
+        LOG.debug(f"no_file_found_at_path_trying_parent path={toml_path()}")
         fs_path = fs_path.parent
-        if fs_path == fs_path.root:
+        count += 1
+        # if the root check fails we get stuck in an
+        # infinite loop, so have a failsafe
+        if fs_path == root or count > 1000:
             raise MissingPyprojectTomlFile(
                 "Hit root directory while attempting to find pyproject.toml"
             )
