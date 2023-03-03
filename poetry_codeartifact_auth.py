@@ -179,10 +179,15 @@ def _find_pyproject_toml_path(cwd: str = None):
     def toml_path():
         return fs_path / "pyproject.toml"
 
+    count = 0
+
     while not toml_path().exists():
         LOG.debug(f"no_file_found_at_path_trying_parent path={toml_path()}")
         fs_path = fs_path.parent
-        if fs_path == root:
+        count += 1
+        # if the root check fails we get stuck in an
+        # infinite loop, so have a failsafe
+        if fs_path == root or count > 1000:
             raise MissingPyprojectTomlFile(
                 "Hit root directory while attempting to find pyproject.toml"
             )
