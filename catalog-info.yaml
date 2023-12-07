@@ -9,13 +9,13 @@ metadata:
   tags:
     - camp-data-intelligence
     - data-restricted
-    - tier-3
+    - asset-criticality-moderate
     - users-internal
   annotations:
     github.com/project-slug: cultureamp/poetry-codeartifact-auth
     backstage.io/techdocs-ref: url:https://github.com/cultureamp/blob/master/poetry-codeartifact-auth
     github.com/team-slug: cultureamp/nlp
 spec:
-  type: service
+  type: library
   owner: nlp
   lifecycle: production
