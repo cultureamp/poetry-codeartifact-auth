@@ -7,15 +7,15 @@ metadata:
     - title: Website
       url: https://github.com/cultureamp/poetry-codeartifact-auth
   tags:
+    - asset-criticality-moderate
     - camp-data-intelligence
     - data-restricted
-    - asset-criticality-moderate
     - users-internal
   annotations:
     github.com/project-slug: cultureamp/poetry-codeartifact-auth
     backstage.io/techdocs-ref: url:https://github.com/cultureamp/blob/master/poetry-codeartifact-auth
-    github.com/team-slug: cultureamp/nlp
+    github.com/team-slug: cultureamp/mlp
 spec:
   type: library
-  owner: nlp
+  owner: mlp
   lifecycle: production
