@@ -25,7 +25,7 @@ It can also be used to automatically fetch authentication tokens to run `pip ins
 ```
   See notes below about package publication status. The intent is to install this globally (but if you have global dependency conflicts you could create a custom virtual environment and set up a command alias to run in the virtual environment. This is likely not needed though).
 
-2. (recommended) also, or instead, add as a Poetry plugin to make the authentication token refresh automatically (only provides an equivalent to the `poetry-ca-auth refresh` subcommand at this time). This will not help if you are using `pip` only.
+2. (**recommended**) also, or instead, add as a Poetry plugin to make the authentication token refresh automatically (only provides an equivalent to the `poetry-ca-auth refresh` subcommand at this time). This will not help if you are using `pip` only.
 
 ```
    poetry self add git+https://github.com/cultureamp/poetry-codeartifact-auth.git#main -E plugin
@@ -88,7 +88,6 @@ where `<UPPERCASE_SOURCE_NAME>` is created by taking the name of your Codeartifa
 
 you can simply run `docker compose build yourapp` and it will automatically pick up the values in the `.env` file, and supply them as args to the build. You can also do this with raw `docker build` but it requires more effort to get the build args to work.
 
-
 ### Authentication methods
 
 The authentication method can be passed using `--auth-method` argument or configured using the environment variable `POETRY_CA_AUTH_METHOD`. The environment variable is the only option when running as a plugin.
@@ -96,6 +95,13 @@ The authentication method can be passed using `--auth-method` argument or config
 #### `sso` (recommended)
 
 If you use `sso`, you need to have an AWS profile set up on your system (eg using `aws configure sso`) which has permissions to fetch CodeArtifact authentication tokens. You can select the profile to use with an environment variable `POETRY_CA_DEFAULT_AWS_PROFILE` (probably in your login shell profile – eg `.bashrc`) or pass to the `refresh` subcommand using the `--profile-default` argument.
+
+**Note for people using Granted**: If using this method you need to be using an AWS profile which automatically sets up the login flow. Standard manual configuration should suffice, but if you set up your profiles using [Granted](https://www.granted.dev) the default profiles created using `granted sso populate` will not work if you are not already logged in, and won't trigger the login flow due to the [Credential Process](https://docs.commonfate.io/granted/recipes/credential-process) feature being activated by default in generated profiles but without the `--auto-login` flag, as discussed [here](https://github.com/common-fate/granted/issues/683). There are several workarounds:
+
+* run `granted sso login` in advance (each time it's needed which will manifest as an authentication failure)
+* use a different AWS profile (manual or populated using `granted sso populate --no-credential-process`)
+* add `--auto-login` to the `credentials_process` key manually (just once, but might get blown away depending on how you run `granted sso populate`)
+* run `granted settings set --setting=CredentialProcessAutoLogin --value true` just once on your machine 
 
 #### `vault`
 
