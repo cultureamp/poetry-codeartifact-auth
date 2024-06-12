@@ -101,7 +101,7 @@ If you use `sso`, you need to have an AWS profile set up on your system (eg usin
 * run `granted sso login` in advance (each time it's needed which will manifest as an authentication failure)
 * use a different AWS profile (manual or populated using `granted sso populate --no-credential-process`)
 * add `--auto-login` to the `credentials_process` key manually (just once, but might get blown away depending on how you run `granted sso populate`)
-* run `granted settings set --setting=CredentialProcessAutoLogin --value true` just once on your machine 
+* run `granted settings set --setting=CredentialProcessAutoLogin --value true` just once on your machine
 
 #### `vault`
 
