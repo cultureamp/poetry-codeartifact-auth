@@ -8,7 +8,7 @@ metadata:
       url: https://github.com/cultureamp/poetry-codeartifact-auth
   tags:
     - asset-criticality-moderate
-    - camp-data-intelligence
+    - camp-core-experiences
     - data-restricted
     - users-internal
   annotations:
