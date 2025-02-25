@@ -15,10 +15,10 @@ from pathlib import Path
 from typing import Dict, TypedDict, cast, Iterable, Union, List
 from urllib import parse
 from urllib.parse import urlparse
+from importlib.metadata import version
 
 import boto3
 import dotenv.parser
-import pkg_resources
 import toml
 
 LOG = logging.getLogger(__name__)
@@ -485,7 +485,7 @@ def main():
         logging.basicConfig(level=logging.WARN)
 
     if parsed.version:
-        print(pkg_resources.get_distribution("poetry-codeartifact-auth").version)
+        print(version("poetry-codeartifact-auth"))
         return
 
     if extras and parsed.subcommand != "pip-install":
