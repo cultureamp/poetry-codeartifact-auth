@@ -8,14 +8,14 @@ metadata:
       url: https://github.com/cultureamp/poetry-codeartifact-auth
   tags:
     - asset-criticality-moderate
-    - camp-core-experiences
+    - camp-data-intelligence
     - data-restricted
     - users-internal
   annotations:
     github.com/project-slug: cultureamp/poetry-codeartifact-auth
     backstage.io/techdocs-ref: url:https://github.com/cultureamp/blob/master/poetry-codeartifact-auth
-    github.com/team-slug: cultureamp/mlp
+    github.com/team-slug: cultureamp/ai-platform
 spec:
   type: library
-  owner: mlp
+  owner: ai-platform
   lifecycle: production
